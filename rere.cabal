@@ -1,0 +1,79 @@
+cabal-version: 2.2
+name:          rere
+version:       0
+synopsis:
+  Regular-expressions extended with fixpoints for context-free powers
+
+category:      Parsing
+description:
+  By extending regular expressions with (explicit) fixed points
+  we can recognize context-free grammars.
+  .
+  See [blog post describing the approach](https://example.org/#).
+
+author:        Oleg Grenrus <oleg.grenrus@iki.fi>
+maintainer:    Oleg Grenrus <oleg.grenrus@iki.fi>
+license:       BSD-3-Clause
+license-file:  LICENSE
+
+source-repository head
+  type:     git
+  location: https://github.com/phadej/rere.git
+
+library
+  default-language: Haskell2010
+  hs-source-dirs:   src
+  ghc-options:      -Wall
+
+  if impl(ghc >= 8.10)
+    ghc-options: -Wmissing-safe-haskell-mode -Winferred-safe-imports
+
+  -- GHC boot library
+  build-depends:
+    , base          >=4.7.0.0  && <4.15
+    , containers    ^>=0.5.5.1 || ^>=0.6.0.1
+    , parsec        ^>=3.1.13.0
+    , transformers  ^>=0.3.0.0 || ^>=0.4.2.0 || ^>=0.5.2.0
+
+  -- other dependencies
+  build-depends:    QuickCheck ^>=2.13.2
+
+  -- expose examples first, so `cabal repl` loads them.
+  exposed-modules:  RERE.Examples
+  exposed-modules:
+    RERE
+    RERE.Absurd
+    RERE.CFG
+    RERE.LaTeX
+    RERE.Ref
+    RERE.Tuples
+    RERE.Type
+    RERE.Var
+
+  -- transformation from CFG
+  build-depends:
+    , fin
+    , vec
+
+benchmark simple
+  type:             exitcode-stdio-1.0
+  default-language: Haskell2010
+  hs-source-dirs:   bench
+  main-is:          Bench.hs
+  build-depends:
+    , base
+    , criterion  ^>=1.5.5.0
+    , parsec
+    , rere
+
+test-suite properties
+  type:             exitcode-stdio-1.0
+  default-language: Haskell2010
+  hs-source-dirs:   test
+  main-is:          Tests.hs
+  build-depends:
+    , base
+    , QuickCheck
+    , rere
+    , tasty             ^>=1.2.3
+    , tasty-quickcheck  ^>=0.10.1.1
