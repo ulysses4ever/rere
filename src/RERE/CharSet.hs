@@ -1,43 +1,136 @@
-{-# LANGUAGE Trustworthy #-}
-module RERE.CharSet where
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE Safe         #-}
+module RERE.CharSet (
+    -- * Set of characters
+    CharSet,
+    -- * Construction
+    empty,
+    singleton,
+    insert,
+    union,
+    -- * Query
+    size,
+    isEmpty,
+    member,
+    -- * Conversions
+    fromList,
+    toList,
+    fromIntervalList,
+    toIntervalList,
+    ) where
 
-import Data.Char            (ord, chr)
-import Data.Coerce          (coerce)
-import Data.RangeSet.IntMap (RIntSet)
+import Data.Char   (chr, ord)
+import Data.List   (foldl', sortBy)
 import Data.String (IsString (..))
 
-import qualified Data.RangeSet.IntMap as RS
+import qualified Data.IntMap.Strict as IM
 
 -- | A set of 'Char's.
 --
 -- We use range set, which works great with 'Char'.
-newtype CharSet = CS RIntSet
+newtype CharSet = CS { unCS :: IM.IntMap Int }
   deriving (Eq, Ord)
 
 instance IsString CharSet where
-    fromString = CS . RS.fromList . map ord
+    fromString = fromList
 
 instance Show CharSet where
-    showsPrec d (CS cs)
-        | RS.size cs < 20
-        = showsPrec d (map chr $ RS.toList cs)
+    showsPrec d cs
+        | size cs < 20
+        = showsPrec d (toList cs)
         | otherwise
         = showParen (d > 10)
         $ showString "CS "
-        . showsPrec 11 cs
+        . showsPrec 11 (unCS cs)
 
 -- | Empty character set.
 empty :: CharSet
-empty = CS RS.empty
+empty = CS IM.empty
+
+-- | Check whether 'CharSet' is 'empty'. Not named 'null' to avoid name clashes.
+isEmpty :: CharSet -> Bool
+isEmpty (CS cs) = IM.null cs
+
+-- | Size of 'CharSet'
+--
+-- >>> size $ fromIntervalList [('a','f'), ('0','9')]
+-- 16
+--
+-- >>> length $ toList $ fromIntervalList [('a','f'), ('0','9')]
+-- 16
+--
+size :: CharSet -> Int
+size (CS m) = foldl' (\ !acc (lo, hi) -> acc + (hi - lo) + 1) 0 (IM.toList m)
 
 -- | Singleton character set.
 singleton :: Char -> CharSet
-singleton = CS . RS.singleton . ord
+singleton c = CS (IM.singleton (ord c) (ord c))
 
 -- | Test whether character is in the set.
 member :: Char -> CharSet -> Bool
-member c (CS rs) = RS.member (ord c) rs
+member c (CS m) = case IM.lookupLE i m of
+    Nothing      -> False
+    Just (_, hi) -> i <= hi
+  where
+    i = ord c
+
+-- | Insert 'Char' into 'CharSet'.
+insert :: Char -> CharSet -> CharSet
+insert c (CS m) = normalise (IM.insert (ord c) (ord c) m)
 
 -- | Union of two 'CharSet's.
 union :: CharSet -> CharSet -> CharSet
-union = coerce RS.union
+union (CS xs) (CS ys) = normalise (IM.unionWith max xs ys)
+
+-- | Make 'CharSet' from a list of characters, i.e. 'String'.
+fromList :: String -> CharSet
+fromList = normalise . foldl' (\ acc c -> IM.insert (ord c) (ord c) acc) IM.empty
+
+-- | Convert 'CharSet' to a list of characters i.e. 'String'.
+toList :: CharSet -> String
+toList = concatMap (uncurry enumFromTo) . toIntervalList
+
+-- | Convert to interval list
+--
+-- >>> toIntervalList $ union "01234" "56789"
+-- [('0','9')]
+--
+toIntervalList :: CharSet -> [(Char, Char)]
+toIntervalList (CS m) = [ (chr lo, chr hi) | (lo, hi) <- IM.toList m ]
+
+-- | Convert from interval pairs.
+--
+-- >>> fromIntervalList []
+-- ""
+--
+-- >>> fromIntervalList [('a','f'), ('0','9')]
+-- "0123456789abcdef"
+--
+-- >>> fromIntervalList [('Z','A')]
+-- ""
+--
+fromIntervalList :: [(Char,Char)] -> CharSet
+fromIntervalList xs = normalise' $ sortBy (\a b -> compare (fst a) (fst b))
+    [ (ord lo, ord hi)
+    | (lo, hi) <- xs
+    , lo <= hi
+    ]
+
+-------------------------------------------------------------------------------
+-- Normalisation
+-------------------------------------------------------------------------------
+
+normalise :: IM.IntMap Int -> CharSet
+normalise = normalise'. IM.toList
+
+normalise' :: [(Int,Int)] -> CharSet
+normalise' = CS . IM.fromList . go where
+    go :: [(Int,Int)] -> [(Int,Int)]
+    go []         = []
+    go ((x,y):zs) = go' x y zs
+
+    go' :: Int -> Int -> [(Int, Int)] -> [(Int, Int)]
+    go' lo hi [] = [(lo, hi)]
+    go' lo hi ws0@((u,v):ws)
+        | u <= succ hi = go' lo (max v hi) ws
+        | otherwise    = (lo,hi) : go ws0

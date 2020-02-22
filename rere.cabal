@@ -37,10 +37,9 @@ library
 
   -- other dependencies
   build-depends:
-    , fin             ^>=0.1.1
-    , QuickCheck      ^>=2.13.2
-    , range-set-list  ^>=0.1.3.1
-    , vec             ^>=0.3
+    , fin         ^>=0.1.1
+    , QuickCheck  ^>=2.13.2
+    , vec         ^>=0.3
 
   -- expose examples first, so `cabal repl` loads them.
   exposed-modules:  RERE.Examples
@@ -75,7 +74,9 @@ test-suite properties
   main-is:          Tests.hs
   build-depends:
     , base
+    , containers
     , QuickCheck
+    , quickcheck-instances  ^>=0.3.22
     , rere
-    , tasty             ^>=1.2.3
-    , tasty-quickcheck  ^>=0.10.1.1
+    , tasty                 ^>=1.2.3
+    , tasty-quickcheck      ^>=0.10.1.1

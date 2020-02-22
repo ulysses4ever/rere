@@ -17,9 +17,8 @@ import Control.Monad.Trans.State
        (State, StateT, evalState, evalStateT, get, modify', put, runState)
 import Data.Void                 (Void, vacuous)
 
-import qualified Data.Map             as Map
-import qualified Data.RangeSet.IntMap as RS
-import qualified Data.Set             as Set
+import qualified Data.Map as Map
+import qualified Data.Set as Set
 
 import           RERE.CharSet
 import qualified RERE.Type    as R
@@ -120,8 +119,8 @@ nullRR :: RR
 nullRR = Ch empty
 
 isNull :: RR -> Bool
-isNull (Ch (CS c)) = RS.null c
-isNull _           = False
+isNull (Ch c) = isEmpty c
+isNull _      = False
 
 app_ :: RR -> RR -> RR
 app_ r    _    | isNull r = r

@@ -10,7 +10,6 @@ module RERE.LaTeX (
     ) where
 
 import Control.Monad.Trans.State (State, evalState, get, put)
-import Data.Char                 (chr)
 import Data.Foldable             (for_, traverse_)
 import Data.List                 (intersperse)
 import Data.Set                  (Set)
@@ -18,9 +17,8 @@ import Data.String               (IsString (..))
 import Data.Vec.Lazy             (Vec (..))
 import Data.Void                 (Void)
 
-import qualified Data.RangeSet.IntMap as RS
-import qualified Data.Set             as Set
-import qualified Data.Vec.Lazy        as V
+import qualified Data.Set      as Set
+import qualified Data.Vec.Lazy as V
 
 import RERE.Absurd
 import RERE.CFG
@@ -82,9 +80,9 @@ latexify' = go BotPrec where
     go :: Prec -> RE Piece -> State (Set NI) Piece
     go _ Null    = return nullPiece
     go _ Eps     = return $ piece $ showString "{\\color{red!80!black}\\varepsilon}"
-    go _ (Ch (CS cs)) = case RS.toRangeList cs of
+    go _ (Ch cs) = case toIntervalList cs of
         []                   -> return nullPiece
-        [(lo,hi)] | lo == hi -> return $ fromString $ "\\mathtt{\\color{green!50!black}" ++ latexChar (chr lo) ++ "}"
+        [(lo,hi)] | lo == hi -> return $ fromString $ "\\mathtt{\\color{green!50!black}" ++ latexChar lo ++ "}"
         xs -> return $ "\\{" <> mconcat (intersperse ", " $ map latexCharRange xs) <> "\\}"
 
     go d (App r s) = parens (d > AppPrec) $ do
@@ -166,10 +164,10 @@ latexChar '[' = "\\text{[}"
 latexChar ']' = "\\text{]}"
 latexChar c   = [c]
 
-latexCharRange :: (Int, Int) -> Piece
+latexCharRange :: (Char, Char) -> Piece
 latexCharRange (lo, hi)
-    | lo == hi  = fromString $ latexChar (chr lo)
-    | otherwise = fromString $ latexChar (chr lo) ++ " \\cdots " ++ latexChar (chr hi)
+    | lo == hi  = fromString $ latexChar lo
+    | otherwise = fromString $ latexChar lo ++ " \\cdots " ++ latexChar hi
 
 data NI = NI String [Char] Int deriving (Eq, Ord)
 
