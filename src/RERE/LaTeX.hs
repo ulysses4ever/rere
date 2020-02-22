@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy         #-}
+-- | Pretty-print structures as LaTeX code.
 module RERE.LaTeX (
     putLatex,
     putLatexTrace,

@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Trustworthy       #-}
+-- | Various examples of using @rere@,
+-- as used [in the blog post](#).
 module RERE.Examples where
 
 import Control.Applicative (some, (<|>))

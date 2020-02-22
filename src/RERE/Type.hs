@@ -5,9 +5,13 @@
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE Safe              #-}
+-- | Regular-expression with fixed points.
 module RERE.Type (
+    -- * Regular expression type
     RE (..),
+    -- * Smart constructors
     (\/), star_, let_, fix_, (>>>=),
+    -- * Operations
     nullable,
     derivative,
     match,
@@ -33,6 +37,7 @@ import RERE.Var
 -- Type
 -------------------------------------------------------------------------------
 
+-- | Regular expression with fixed point.
 data RE a
     = Null
     | Eps
@@ -141,6 +146,9 @@ nullable' (Fix _ r1)   = nullable' (fmap (unvar False id) r1)
 derivative :: Char -> RE Void -> RE Void
 derivative = derivative1
 
+-- | 'derivative1' and 'derivative2' are slightly different
+-- implementations internally. We are interested in comparing
+-- whether either one is noticeably faster (no).
 derivative2 :: Char -> RE Void -> RE Void
 derivative2 c = go' . vacuous where
     go' :: Ord b => RE (Triple Bool b b) -> RE b
@@ -185,6 +193,9 @@ derivative2 c = go' . vacuous where
       where
         n' = derivativeName c n
 
+-- | 'derivative1' and 'derivative2' are slightly different
+-- implementations internally. We are interested in comparing
+-- whether either one is noticeably faster (no).
 derivative1 :: Char -> RE Void -> RE Void
 derivative1 c = go absurd where
     -- function to calculate nullability and derivative of a variable

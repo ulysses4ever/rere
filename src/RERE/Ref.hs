@@ -1,4 +1,7 @@
 {-# LANGUAGE Safe #-}
+-- | Regular expression with explicit sharing.
+--
+-- 'RR' is an opaque type, to maintain the invariants.
 module RERE.Ref (
     RR,
     fromRE,

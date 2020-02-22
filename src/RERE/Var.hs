@@ -2,6 +2,7 @@
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
 {-# LANGUAGE Safe              #-}
+-- | Variables, de Bruijn indices and names.
 module RERE.Var where
 
 import Data.String (IsString (..))

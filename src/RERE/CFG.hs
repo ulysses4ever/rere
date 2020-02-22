@@ -2,6 +2,8 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE Trustworthy #-}
+-- | Context free grammars, where
+-- each production is a regular-expression.
 module RERE.CFG (
     -- * Context-free grammars
     CFG,
@@ -37,6 +39,13 @@ type CFGBase n a = RE (Either (Fin n) a)
 -- >>> let a = Eps \/ Ch 'a' <> Var (Left FZ)
 -- >>> let b = Eps \/ Ch 'b' <> Var (Left (FS FZ))
 -- >>> let cfg = b ::: a ::: VNil
+--
+-- \[
+-- \begin{aligned}
+-- {\mathit{b}} &= {\varepsilon}\cup\mathtt{b}{\mathit{a}} \\
+-- {\mathit{a}} &= {\varepsilon}\cup\mathtt{a}{\mathit{b}} \\
+-- \end{aligned}
+-- \]
 --
 -- >>> cfgToRE ("b" ::: "a" ::: VNil) cfg
 -- Fix "a" (Let "b" (Alt Eps (App (Ch 'b') (Var B))) (Alt Eps (App (Ch 'a') (Var B))))

@@ -25,7 +25,7 @@ library
   hs-source-dirs:   src
   ghc-options:      -Wall
 
-  if impl(ghc >= 8.10)
+  if impl(ghc >=8.10)
     ghc-options: -Wmissing-safe-haskell-mode -Winferred-safe-imports
 
   -- GHC boot library
@@ -36,7 +36,10 @@ library
     , transformers  ^>=0.3.0.0 || ^>=0.4.2.0 || ^>=0.5.2.0
 
   -- other dependencies
-  build-depends:    QuickCheck ^>=2.13.2
+  build-depends:
+    , fin         ^>=0.1.1
+    , QuickCheck  ^>=2.13.2
+    , vec         ^>=0.3
 
   -- expose examples first, so `cabal repl` loads them.
   exposed-modules:  RERE.Examples
@@ -46,14 +49,10 @@ library
     RERE.CFG
     RERE.LaTeX
     RERE.Ref
-    RERE.Tuples
     RERE.Type
     RERE.Var
 
-  -- transformation from CFG
-  build-depends:
-    , fin
-    , vec
+  other-modules:    RERE.Tuples
 
 benchmark simple
   type:             exitcode-stdio-1.0
