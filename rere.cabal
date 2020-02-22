@@ -98,7 +98,7 @@ benchmark simple
     , parsec
     , rere
 
-  if flag(rere-cfg)
+  if flag(rere-cfg) && impl(ghc >= 7.8)
     cpp-options: -DRERE_CFG
 
   if !impl(ghc >=7.4)
