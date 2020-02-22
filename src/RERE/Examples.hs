@@ -27,8 +27,8 @@ syntaxExamples = do
     putLatex Null
     putLatex Eps
 
-    putLatex $ Ch 'a'
-    putLatex $ Ch 'b'
+    putLatex $ ch_ 'a'
+    putLatex $ ch_ 'b'
 
     putLatex $ Let "r" Eps $ Let "r" Eps $ App (Var B) (Var (F B))
     putLatex $ Let "r" Eps $ Let "r" Eps $ Alt (Var B) (Var (F B))
@@ -47,10 +47,10 @@ syntaxExamples = do
 -- False
 --
 -- >>> ex1
--- Star (App (Ch 'a') (Ch 'b'))
+-- Star (App (Ch "a") (Ch "b"))
 --
 -- >>> fromRE ex1
--- Star (App (Ch 'a') (Ch 'b'))
+-- Star (App (Ch "a") (Ch "b"))
 --
 -- >>> matchR ex1 "abab"
 -- True
@@ -59,7 +59,7 @@ syntaxExamples = do
 -- False
 --
 ex1 :: RE Void
-ex1 = star_ (Ch 'a' <> Ch 'b')
+ex1 = star_ (ch_ 'a' <> ch_ 'b')
 
 ex1run1 :: IO ()
 ex1run1 = putLatexTrace ex1 "abab"
@@ -76,13 +76,13 @@ ex1run1 = putLatexTrace ex1 "abab"
 -- Note: how "sharing" is preserved.
 --
 -- >>> fromRE ex2
--- App (Ref 0 (Star (Ch 'a'))) (Ref 0 (Star (Ch 'a')))
+-- App (Ref 0 (Star (Ch "a"))) (Ref 0 (Star (Ch "a")))
 --
 -- >>> matchR ex2 "aaa"
 -- True
 --
 ex2 :: RE Void
-ex2 = Let "r" (star_ (Ch 'a')) (Var B <> Var B)
+ex2 = Let "r" (star_ (ch_ 'a')) (Var B <> Var B)
 
 ex2run1 :: IO ()
 ex2run1 = putLatexTrace ex2 "aaa"
@@ -100,7 +100,7 @@ ex2run1 = putLatexTrace ex2 "aaa"
 -- False
 --
 -- >>> fromRE ex3
--- Ref 0 (Alt Eps (App (Ch 'a') (App (Ch 'b') (Ref 0 ...))))
+-- Ref 0 (Alt Eps (App (Ch "a") (App (Ch "b") (Ref 0 ...))))
 --
 -- >>> matchR ex3 "abab"
 -- True
@@ -109,7 +109,7 @@ ex2run1 = putLatexTrace ex2 "aaa"
 -- False
 --
 ex3 :: RE Void
-ex3 = Fix "x" (Eps \/ Ch 'a' <> Ch 'b' <> Var B)
+ex3 = Fix "x" (Eps \/ ch_ 'a' <> ch_ 'b' <> Var B)
 
 ex3run1 :: IO ()
 ex3run1 = putLatexTrace ex3 "abab"
@@ -127,7 +127,7 @@ ex3run1 = putLatexTrace ex3 "abab"
 -- True
 --
 ex4 :: RE Void
-ex4 = Fix "x" (Eps \/ Ch 'a' <> Var B <> Ch 'b')
+ex4 = Fix "x" (Eps \/ ch_ 'a' <> Var B <> ch_ 'b')
 
 ex4run1 :: IO ()
 ex4run1 = putLatexTrace ex4 "aaaabbbb"
@@ -151,7 +151,7 @@ ex4run1 = putLatexTrace ex4 "aaaabbbb"
 -- False
 --
 ex5 :: RE Void
-ex5 = Fix "x" (Eps \/ Var B <> Ch 'a' <> Ch 'b')
+ex5 = Fix "x" (Eps \/ Var B <> ch_ 'a' <> ch_ 'b')
 
 ex5run1 :: IO ()
 ex5run1 = putLatexTrace ex5 "abab"
@@ -174,13 +174,13 @@ ex5run1 = putLatexTrace ex5 "abab"
 -- @
 --
 ex6 :: RE Void
-ex6 = Let "d" (Ch '0' \/ Ch '1' \/ Ch '2' \/ Ch '3')
+ex6 = Let "d" (ch_ '0' \/ ch_ '1' \/ ch_ '2' \/ ch_ '3')
     $ Let "n" (Var B <> star_ (Var B))
     $ Fix "e"
-    $  Ch '(' <> Var B <> Ch ')'
+    $  ch_ '(' <> Var B <> ch_ ')'
     \/ Var (F B)
-    \/ Var B <> Ch '+' <> Var B
-    \/ Var B <> Ch '*' <> Var B
+    \/ Var B <> ch_ '+' <> Var B
+    \/ Var B <> ch_ '*' <> Var B
 
 --
 -- (displayTraced . traced) is "match" function, which
@@ -198,11 +198,11 @@ exCfg :: Ord a => CFG N.Nat5 a
 exCfg =
     digit ::: digits ::: term ::: mult ::: expr ::: VNil
   where
-    expr = Alt (multV <> Ch '*' <> exprV) multV
-    mult = Alt (termV <> Ch '+' <> multV) termV
-    term = Alt digitsV (Ch '(' <> exprV <> Ch ')')
+    expr = Alt (multV <> ch_ '*' <> exprV) multV
+    mult = Alt (termV <> ch_ '+' <> multV) termV
+    term = Alt digitsV (ch_ '(' <> exprV <> ch_ ')')
 
-    digit = Ch '0' \/ Ch '1' \/ Ch '2' \/ Ch '3'
+    digit = Ch "0123456789"
     digits = digitV <> star_ digitV
 
     digitV, digitsV, exprV, multV, termV :: CFGBase N.Nat5 a
@@ -238,10 +238,7 @@ ex7parsec = expr where
     mult   = void $ P.try (term >> P.char '+' >> mult) <|> term
     term   = P.try digits <|> void (P.char '(' *> expr *> P.char ')')
     digits = void $ some digit
-    digit  = P.char '0'
-         <|> P.char '1'
-         <|> P.char '2'
-         <|> P.char '3'
+    digit  = P.satisfy (\c -> c >= '0' && c <= '9')
 
 ex7parsecRun :: IO ()
 ex7parsecRun = P.parseTest ex7parsec "1*(20+3)"

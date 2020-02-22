@@ -10,17 +10,21 @@ module RERE.LaTeX (
     ) where
 
 import Control.Monad.Trans.State (State, evalState, get, put)
+import Data.Char                 (chr)
 import Data.Foldable             (for_, traverse_)
+import Data.List                 (intersperse)
 import Data.Set                  (Set)
 import Data.String               (IsString (..))
 import Data.Vec.Lazy             (Vec (..))
 import Data.Void                 (Void)
 
-import qualified Data.Set      as Set
-import qualified Data.Vec.Lazy as V
+import qualified Data.RangeSet.IntMap as RS
+import qualified Data.Set             as Set
+import qualified Data.Vec.Lazy        as V
 
 import RERE.Absurd
 import RERE.CFG
+import RERE.CharSet
 import RERE.Type
 import RERE.Var
 
@@ -63,15 +67,25 @@ instance Semigroup Piece where
         sep | b, c      = showString "\\,"
             | otherwise = id
 
+instance Monoid Piece where
+    mempty  = Piece False False id
+    mappend = (<>)
+
 latexify :: RE Void -> String
 latexify re0 = unPiece (evalState (latexify' (vacuous re0)) Set.empty) ""
+
+nullPiece :: Piece
+nullPiece = "{\\color{red!80!black}\\emptyset}"
 
 latexify' :: RE Piece -> State (Set NI) Piece
 latexify' = go BotPrec where
     go :: Prec -> RE Piece -> State (Set NI) Piece
-    go _ Null   = return $ piece $ showString "{\\color{red!80!black}\\emptyset}"
-    go _ Eps    = return $ piece $ showString "{\\color{red!80!black}\\varepsilon}"
-    go _ (Ch c) = return $ piece $ showString $ "\\mathtt{\\color{green!50!black}" ++ latexChar c ++ "}"
+    go _ Null    = return nullPiece
+    go _ Eps     = return $ piece $ showString "{\\color{red!80!black}\\varepsilon}"
+    go _ (Ch (CS cs)) = case RS.toRangeList cs of
+        []                   -> return nullPiece
+        [(lo,hi)] | lo == hi -> return $ fromString $ "\\mathtt{\\color{green!50!black}" ++ latexChar (chr lo) ++ "}"
+        xs -> return $ "\\{" <> mconcat (intersperse ", " $ map latexCharRange xs) <> "\\}"
 
     go d (App r s) = parens (d > AppPrec) $ do
         r'  <- go AppPrec r
@@ -148,7 +162,14 @@ latexChar '*' = "\\text{*}"
 latexChar '+' = "\\text{+}"
 latexChar '(' = "\\text{(}"
 latexChar ')' = "\\text{)}"
+latexChar '[' = "\\text{[}"
+latexChar ']' = "\\text{]}"
 latexChar c   = [c]
+
+latexCharRange :: (Int, Int) -> Piece
+latexCharRange (lo, hi)
+    | lo == hi  = fromString $ latexChar (chr lo)
+    | otherwise = fromString $ latexChar (chr lo) ++ " \\cdots " ++ latexChar (chr hi)
 
 data NI = NI String [Char] Int deriving (Eq, Ord)
 

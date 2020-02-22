@@ -36,8 +36,8 @@ type CFGBase n a = RE (Either (Fin n) a)
 -- | Convert 'CFG' (with names for productions) into 'RE'.
 -- Note: the start symbol have to be last equation.
 --
--- >>> let a = Eps \/ Ch 'a' <> Var (Left FZ)
--- >>> let b = Eps \/ Ch 'b' <> Var (Left (FS FZ))
+-- >>> let a = Eps \/ ch_ 'a' <> Var (Left FZ)
+-- >>> let b = Eps \/ ch_ 'b' <> Var (Left (FS FZ))
 -- >>> let cfg = b ::: a ::: VNil
 --
 -- \[
@@ -48,7 +48,7 @@ type CFGBase n a = RE (Either (Fin n) a)
 -- \]
 --
 -- >>> cfgToRE ("b" ::: "a" ::: VNil) cfg
--- Fix "a" (Let "b" (Alt Eps (App (Ch 'b') (Var B))) (Alt Eps (App (Ch 'a') (Var B))))
+-- Fix "a" (Let "b" (Alt Eps (App (Ch "b") (Var B))) (Alt Eps (App (Ch "a") (Var B))))
 --
 -- which represents \(\mathbf{fix}\,{\mathit{a}}=\mathbf{let}\,{\mathit{b}}={\varepsilon}\cup\mathtt{b}{\mathit{a}}\,\mathbf{in}\,{\varepsilon}\cup\mathtt{a}{\mathit{b}}\)
 -- recursive regular expression.

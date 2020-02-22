@@ -17,17 +17,18 @@ import Control.Monad.Trans.State
        (State, StateT, evalState, evalStateT, get, modify', put, runState)
 import Data.Void                 (Void, vacuous)
 
-import qualified Data.Map as Map
-import qualified Data.Set as Set
+import qualified Data.Map             as Map
+import qualified Data.RangeSet.IntMap as RS
+import qualified Data.Set             as Set
 
-import qualified RERE.Type as R
+import           RERE.CharSet
+import qualified RERE.Type    as R
 import           RERE.Var
 
 -- | Knot-tied recursive regular expression.
 data RR
-    = Null
-    | Eps
-    | Ch Char
+    = Eps
+    | Ch CharSet
     | App RR RR
     | Alt RR RR
     | Star RR
@@ -36,7 +37,6 @@ data RR
 instance Show RR where
     showsPrec = go Set.empty where
         go :: Set.Set Int -> Int -> RR -> ShowS
-        go _    _ Null      = showString "Null"
         go _    _ Eps       = showString "Eps"
         go _    d (Ch c)    = showParen (d > 10) $ showString "Ch " . showsPrec 11 c
         go past d (App r s)
@@ -70,19 +70,19 @@ fromRE r = evalState (fromRE' r) 0
 
 fromRE' :: R.RE Void -> M RR
 fromRE' re = go (vacuous re) where
-    go R.Null   = return Null
+    go R.Null   = return nullRR
     go R.Eps    = return Eps
     go (R.Ch c) = return (Ch c)
 
     go (R.App r s) = do
         r' <- go r
         s' <- go s
-        app_ r' s'
+        return (app_ r' s')
 
     go (R.Alt r s) = do
         r' <- go r
         s' <- go s
-        alt_ r' s'
+        return (alt_ r' s')
 
     go (R.Star r) = do
         r' <- go r
@@ -116,22 +116,29 @@ newId = do
 -- Smart constructors
 -------------------------------------------------------------------------------
 
-app_ :: RR -> RR -> M RR
-app_ Null _    = return Null
-app_ _    Null = return Null
-app_ Eps  r    = return r
-app_ r    Eps  = return r
-app_ r    s    = do
-    return (App r s)
+nullRR :: RR
+nullRR = Ch empty
 
-alt_ :: RR -> RR -> M RR
-alt_ Null r    = return r
-alt_ r    Null = return r
-alt_ r    s    = do
-    return (Alt r s)
+isNull :: RR -> Bool
+isNull (Ch (CS c)) = RS.null c
+isNull _           = False
+
+app_ :: RR -> RR -> RR
+app_ r    _    | isNull r = r
+app_ _    r    | isNull r = r
+app_ Eps  r    = r
+app_ r    Eps  = r
+app_ r    s    = App r s
+
+alt_ :: RR -> RR -> RR
+alt_ r      s      | isNull r = s
+alt_ r      s      | isNull s = r
+alt_ (Ch a) (Ch b) = Ch (union a b)
+alt_ r      s      = Alt r s
 
 star_ :: RR -> M RR
-star_ Null       = return Eps
+star_ r          | isNull r
+                 = return Eps
 star_ Eps        = return Eps
 star_ r@(Star _) = return r
 star_ r          = return (Star r)
@@ -158,10 +165,9 @@ matchR re str = evalState (fromRE' re >>= go str) 0 where
 derivative :: Char -> RR -> M RR
 derivative c rr = evalStateT (go rr) Map.empty where
     go :: RR -> StateT (Map.Map Int RR) M RR
-    go Null               = return Null
-    go Eps                = return Null
-    go (Ch x) | c == x    = return Eps
-              | otherwise = return Null
+    go Eps                 = return nullRR
+    go (Ch x) | member c x = return Eps
+              | otherwise  = return nullRR
     go (Alt r s) = do
         r' <- go r
         s' <- go s
@@ -171,15 +177,14 @@ derivative c rr = evalStateT (go rr) Map.empty where
         | nullableR r = do
             r' <- go r
             s' <- go s
-            rs <- lift $ app_ r' s
-            lift $ alt_ s' rs
+            return $ alt_ s' (app_ r' s)
         | otherwise = do
             r' <- go r
-            lift $ app_ r' s
+            return $ app_ r' s
 
     go r0@(Star r) = do
         r' <- go r
-        lift (app_ r' r0)
+        return (app_ r' r0)
 
     go (Ref i r) = do
         m <- get
@@ -232,7 +237,6 @@ collectEquations = go Map.empty where
                 in go (Map.insert i bexpr acc) (queue' <> next)
 
 collectEquation :: RR -> State (Map.Map Int RR) BoolExpr
-collectEquation Null      = return BFalse
 collectEquation Eps       = return BTrue
 collectEquation (Ch _)    = return  BFalse
 collectEquation (App r s) = band <$> collectEquation r <*> collectEquation s

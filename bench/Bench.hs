@@ -13,7 +13,7 @@ input :: String
 input = "1000*(2020+202)*(20+3)*((30+20)*10000)+123123123*12313"
 
 input2 :: String
-input2 = "1000*(20+4)*((30+20)*10000)"
+input2 = "1000*(20+a)*((30+20)*10000)"
 
 parsec :: P.Parser () -> String -> Bool
 parsec p s = case P.parse (p <* P.eof) "<input>" s of

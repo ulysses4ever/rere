@@ -10,7 +10,7 @@ module RERE.Type (
     -- * Regular expression type
     RE (..),
     -- * Smart constructors
-    (\/), star_, let_, fix_, (>>>=),
+    ch_, (\/), star_, let_, fix_, (>>>=),
     -- * Operations
     nullable,
     derivative,
@@ -21,17 +21,18 @@ module RERE.Type (
     derivative2,
     ) where
 
-import Data.Bifunctor (bimap)
-import Data.Functor   ((<&>))
-import Data.String    (IsString (..))
-import Data.Void      (Void)
+import Data.Bifunctor       (bimap)
+import Data.Functor         ((<&>))
+import Data.String          (IsString (..))
+import Data.Void            (Void)
 
-import qualified Data.Set        as Set
-import qualified Test.QuickCheck as QC
+import qualified Data.Set             as Set
+import qualified Test.QuickCheck      as QC
 
 import RERE.Absurd
 import RERE.Tuples
 import RERE.Var
+import RERE.CharSet
 
 -------------------------------------------------------------------------------
 -- Type
@@ -41,7 +42,7 @@ import RERE.Var
 data RE a
     = Null
     | Eps
-    | Ch Char
+    | Ch CharSet
     | App (RE a) (RE a)
     | Alt (RE a) (RE a)
     | Star (RE a)
@@ -62,7 +63,7 @@ arb :: Ord a => Int -> [QC.Gen a] -> QC.Gen (RE a)
 arb n vars = QC.oneof $
     [ pure Null
     , pure Eps
-    , Ch <$> QC.elements "abcdef"
+    , Ch . singleton <$> QC.elements "abcdef"
     ] ++
     [ Var <$> g | g <- vars ] ++
     (if n > 1 then [app, alt, st, letG, fixG] else [])
@@ -123,7 +124,7 @@ match !re (c:cs) = match (derivative c re) cs
 -- >>> nullable Eps
 -- True
 --
--- >>> nullable (Ch 'c')
+-- >>> nullable (ch_ 'c')
 -- False
 --
 nullable :: RE a -> Bool
@@ -155,8 +156,8 @@ derivative2 c = go' . vacuous where
     go' Null = Null
     go' Eps = Null
     go' (Ch x)
-      | c == x    = Eps
-      | otherwise = Null
+        | member c x = Eps
+        | otherwise  = Null
     go' (App r s)
         | nullable' (fmap fstOf3 r) = go' s \/ (go' r <> fmap trdOf3 s)
         | otherwise                 =           go' r <> fmap trdOf3 s
@@ -203,8 +204,8 @@ derivative1 c = go absurd where
     go _ Null = Null
     go _ Eps   = Null
     go _ (Ch x)
-        | c == x    = Eps
-        | otherwise = Null
+        | member c x = Eps
+        | otherwise  = Null
     go f (App r s)
         | nullable' (fmap (fstOf3 . f) r) = go f s \/ (go f r <> fmap (trdOf3 . f) s)
         | otherwise                       =            go f r <> fmap (trdOf3 . f) s
@@ -280,6 +281,10 @@ Let n s r  >>>= k = Let n (s >>>= k) (r >>>= unvar (Var B) (fmap F . k))
 Fix n r1   >>>= k = Fix n (r1 >>>= unvar (Var B) (fmap F . k))
 
 infixl 4 >>>=
+
+-- | Smart 'Ch', as it takes 'Char' argument.
+ch_ :: Char -> RE a
+ch_ = Ch . singleton
 
 -- | Smart 'Star'.
 star_ :: RE a -> RE a
@@ -358,8 +363,9 @@ infixl 5 \/
 -- | Smart 'Alt'.
 (\/) :: Ord a => RE a -> RE a -> RE a
 r       \/ s       | r == s = r
-Null   \/ r       = r
-r       \/ Null   = r
+Null    \/ r       = r
+r       \/ Null    = r
+Ch a    \/ Ch b    = Ch (union a b)
 Eps     \/ r       | nullable r = r
 r       \/ Eps     | nullable r = r
 Let n x r \/ s       = let_ n x (r \/ fmap F s)

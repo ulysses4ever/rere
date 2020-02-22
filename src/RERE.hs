@@ -8,7 +8,7 @@ module RERE (
     -- * Regular expressions with fixpoints
     RE (..),
     -- ** Smart constructors
-    (\/), star_, let_, fix_, (>>>=),
+    ch_, (\/), star_, let_, fix_, (>>>=),
     -- ** Operations
     nullable, derivative, compact,
     -- ** Matching
