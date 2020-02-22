@@ -1,11 +1,21 @@
 {-# LANGUAGE DeriveFoldable    #-}
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE Safe              #-}
+{-# LANGUAGE CPP         #-}
+#if __GLASGOW_HASKELL__ >=704
+{-# LANGUAGE Safe        #-}
+#elif __GLASGOW_HASKELL__ >=702
+{-# LANGUAGE Trustworthy #-}
+#endif
 -- | Variables, de Bruijn indices and names.
 module RERE.Var where
 
 import Data.String (IsString (..))
+
+#if !MIN_VERSION_base(4,8,0)
+import Data.Foldable (Foldable)
+import Data.Traversable (Traversable)
+#endif
 
 -- | 'Var' is essentially 'Maybe'.
 data Var a

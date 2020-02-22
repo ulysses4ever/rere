@@ -1,10 +1,14 @@
 {-# LANGUAGE BangPatterns      #-}
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE DeriveFoldable    #-}
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE DeriveTraversable #-}
-{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
+#if __GLASGOW_HASKELL__ >=704
 {-# LANGUAGE Safe              #-}
+#elif __GLASGOW_HASKELL__ >=702
+{-# LANGUAGE Trustworthy       #-}
+#endif
 -- | Regular-expression with fixed points.
 module RERE.Type (
     -- * Regular expression type
@@ -21,18 +25,29 @@ module RERE.Type (
     derivative2,
     ) where
 
-import Data.Bifunctor       (bimap)
-import Data.Functor         ((<&>))
-import Data.String          (IsString (..))
-import Data.Void            (Void)
+import Data.String (IsString (..))
+import Data.Void   (Void)
 
-import qualified Data.Set             as Set
-import qualified Test.QuickCheck      as QC
+import qualified Data.Set        as Set
+import qualified Test.QuickCheck as QC
 
 import RERE.Absurd
+import RERE.CharSet
 import RERE.Tuples
 import RERE.Var
-import RERE.CharSet
+
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative (pure, (<$>))
+import Data.Foldable       (Foldable)
+import Data.Traversable    (Traversable (..))
+#endif
+
+#if !MIN_VERSION_base(4,10,0)
+import Data.Semigroup (Semigroup (..))
+#endif
+
+(<&>) :: Functor f => f a -> (a -> b) -> f b
+(<&>) = flip fmap
 
 -------------------------------------------------------------------------------
 -- Type
@@ -177,7 +192,7 @@ derivative2 c = go' . vacuous where
         = let_ n (fmap trdOf3 r)
         $ let_ n' (fmap F r')
         $ go'
-        $ s <&> \case
+        $ s <&> \var -> case var of
             B   -> T (nullable' (fmap fstOf3 r)) B (F B)
             F x -> bimap (F . F) (F . F) x
       where
@@ -188,7 +203,7 @@ derivative2 c = go' . vacuous where
         = let_ n (fmap trdOf3 r0)
         $ fix_ n'
         $ go'
-        $ r <&> \case
+        $ r <&> \var -> case var of
             B   -> T (nullable' (fmap fstOf3 r0)) B (F B)
             F x -> bimap (F . F) (F . F) x
       where
@@ -223,7 +238,7 @@ derivative1 c = go absurd where
         | otherwise
         = let_ n (fmap (trdOf3 . f) r)
         $ let_ n' (fmap F r')
-        $ go (\case
+        $ go (\var ->  case var of
             B   -> T (nullable' (fmap (fstOf3 . f) r)) B (F B)
             F x -> bimap (F . F) (F . F) (f x))
         $ s
@@ -233,7 +248,7 @@ derivative1 c = go absurd where
     go f r0@(Fix n r)
         = let_ n (fmap (trdOf3 . f) r0)
         $ fix_ n'
-        $ go (\case
+        $ go (\var -> case var of
             B   -> T (nullable' (fmap (fstOf3 . f) r0)) B (F B)
             F x -> bimap (F . F) (F . F) (f x))
         $ r

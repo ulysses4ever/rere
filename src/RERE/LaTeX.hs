@@ -1,30 +1,51 @@
+{-# LANGUAGE CPP                 #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE Trustworthy         #-}
+#ifdef RERE_CFG
+{-# LANGUAGE Trustworthy       #-}
+#elif __GLASGOW_HASKELL__ >=704
+{-# LANGUAGE Safe              #-}
+#elif __GLASGOW_HASKELL__ >=702
+{-# LANGUAGE Trustworthy       #-}
+#endif
 -- | Pretty-print structures as LaTeX code.
 module RERE.LaTeX (
     putLatex,
     putLatexTrace,
+#ifdef RERE_CFG
     putLatexCFG,
+#endif
     ) where
 
 import Control.Monad.Trans.State (State, evalState, get, put)
-import Data.Foldable             (for_, traverse_)
+import Data.Foldable             (for_)
 import Data.List                 (intersperse)
 import Data.Set                  (Set)
 import Data.String               (IsString (..))
-import Data.Vec.Lazy             (Vec (..))
 import Data.Void                 (Void)
 
-import qualified Data.Set      as Set
-import qualified Data.Vec.Lazy as V
+import qualified Data.Set as Set
 
 import RERE.Absurd
-import RERE.CFG
 import RERE.CharSet
 import RERE.Type
 import RERE.Var
+
+#ifdef RERE_CFG
+import RERE.CFG
+
+import           Data.Vec.Lazy (Vec (..))
+import qualified Data.Vec.Lazy as V
+#endif
+
+#if !MIN_VERSION_base(4,8,0)
+import Data.Monoid (Monoid (..))
+#endif
+
+#if !MIN_VERSION_base(4,10,0)
+import Data.Semigroup (Semigroup (..))
+#endif
 
 -------------------------------------------------------------------------------
 --
@@ -33,10 +54,6 @@ import RERE.Var
 -- | Pretty-print 'RE' as LaTeX code.
 putLatex :: RE Void -> IO ()
 putLatex = putStrLn . latexify
-
--- | Pretty-print 'CFG' given the names.
-putLatexCFG :: Vec n Name -> CFG n Void -> IO ()
-putLatexCFG names cfg = putStrLn (latexifyCfg names cfg)
 
 -------------------------------------------------------------------------------
 -- Latex utilities
@@ -232,12 +249,17 @@ displayTrace (matched, final, steps) = do
 -- CFG
 -------------------------------------------------------------------------------
 
+#ifdef RERE_CFG
+-- | Pretty-print 'CFG' given the names.
+putLatexCFG :: Vec n Name -> CFG n Void -> IO ()
+putLatexCFG names cfg = putStrLn (latexifyCfg names cfg)
+
 latexifyCfg :: forall n. Vec n Name -> CFG n Void -> String
 latexifyCfg names cfg =
     unlines $  ["\\begin{aligned}"] ++ go names cfg ++ ["\\end{aligned}"]
   where
     initS :: State (Set NI) ()
-    initS = traverse_ newUnique names
+    initS = for_ names newUnique
 
     go :: Vec m Name -> Vec m (CFGBase n Void) -> [String]
     go VNil       VNil       = []
@@ -252,3 +274,4 @@ latexifyCfg names cfg =
 
         eq' :: String
         eq' = unPiece (evalState eq Set.empty) ""
+#endif

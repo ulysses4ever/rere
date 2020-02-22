@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Main (main) where
 
 import RERE (match)
@@ -23,16 +24,24 @@ parsec p s = case P.parse (p <* P.eof) "<input>" s of
 main :: IO ()
 main = do
     print $ parsec ex7parsec input
+#ifdef RERE_CFG
     print $ match  ex7       input
     print $ matchR ex7       input
+#endif
     print $ parsec ex7parsec input2
+#ifdef RERE_CFG
     print $ match  ex7       input2
     print $ matchR ex7       input2
+#endif
     defaultMain
         [ bench "parsec" $ whnf (parsec ex7parsec) input
+#ifdef RERE_CFG
         , bench "rere"   $ whnf (match  ex7)       input
         , bench "ref"    $ whnf (matchR ex7)       input
+#endif
         , bench "parsec" $ whnf (parsec ex7parsec) input2
+#ifdef RERE_CFG
         , bench "rere"   $ whnf (match  ex7)       input2
         , bench "ref"    $ whnf (matchR ex7)       input2
+#endif
         ]

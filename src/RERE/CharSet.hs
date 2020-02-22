@@ -1,5 +1,10 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP          #-}
+#if __GLASGOW_HASKELL__ >=704
 {-# LANGUAGE Safe         #-}
+#elif __GLASGOW_HASKELL__ >=702
+{-# LANGUAGE Trustworthy  #-}
+#endif
 module RERE.CharSet (
     -- * Set of characters
     CharSet,
@@ -23,7 +28,11 @@ import Data.Char   (chr, ord)
 import Data.List   (foldl', sortBy)
 import Data.String (IsString (..))
 
+#if MIN_VERSION_containers(0,5,0)
 import qualified Data.IntMap.Strict as IM
+#else
+import qualified Data.IntMap as IM
+#endif
 
 -- | A set of 'Char's.
 --
@@ -68,10 +77,17 @@ singleton c = CS (IM.singleton (ord c) (ord c))
 
 -- | Test whether character is in the set.
 member :: Char -> CharSet -> Bool
+#if MIN_VERSION_containers(0,5,0)
 member c (CS m) = case IM.lookupLE i m of
     Nothing      -> False
     Just (_, hi) -> i <= hi
   where
+#else
+member c (CS m) = go (IM.toList m)
+  where
+    go [] = False
+    go ((x,y):zs) = (x <= i && i <= y) || go zs
+#endif
     i = ord c
 
 -- | Insert 'Char' into 'CharSet'.

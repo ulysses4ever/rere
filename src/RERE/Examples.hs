@@ -1,21 +1,39 @@
+{-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
+#ifdef RERE_CFG
 {-# LANGUAGE Trustworthy       #-}
+#elif __GLASGOW_HASKELL__ >=704
+{-# LANGUAGE Safe              #-}
+#elif __GLASGOW_HASKELL__ >=702
+{-# LANGUAGE Trustworthy       #-}
+#endif
 -- | Various examples of using @rere@,
 -- as used [in the blog post](#).
 module RERE.Examples where
 
 import Control.Applicative (some, (<|>))
 import Control.Monad       (void)
-import Data.Vec.Lazy       (Vec (..))
 import Data.Void           (Void)
-
-import qualified Data.Fin      as F
-import qualified Data.Type.Nat as N
 
 import qualified Text.Parsec        as P
 import qualified Text.Parsec.String as P
 
 import RERE
+
+#ifdef RERE_CFG
+import Data.Vec.Lazy (Vec (..))
+
+import qualified Data.Fin      as F
+import qualified Data.Type.Nat as N
+#endif
+
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative ((*>))
+#endif
+
+#if !MIN_VERSION_base(4,10,0)
+import Data.Semigroup (Semigroup (..))
+#endif
 
 -------------------------------------------------------------------------------
 -- * Syntax
@@ -194,6 +212,7 @@ ex6run1 = putLatexTrace ex6 "1*(20+3)"
 -- * Example7
 -------------------------------------------------------------------------------
 
+#ifdef RERE_CFG
 exCfg :: Ord a => CFG N.Nat5 a
 exCfg =
     digit ::: digits ::: term ::: mult ::: expr ::: VNil
@@ -231,6 +250,7 @@ ex7run1 = ex7run "1*(20+3)"
 
 ex7run :: String -> IO ()
 ex7run str = putLatexTrace ex7 str
+#endif
 
 ex7parsec :: P.Parser ()
 ex7parsec = expr where

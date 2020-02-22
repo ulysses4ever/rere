@@ -1,4 +1,9 @@
-{-# LANGUAGE Safe #-}
+{-# LANGUAGE CPP          #-}
+#if __GLASGOW_HASKELL__ >=704
+{-# LANGUAGE Safe         #-}
+#elif __GLASGOW_HASKELL__ >=702
+{-# LANGUAGE Trustworthy  #-}
+#endif
 -- | Regular expression with explicit sharing.
 --
 -- 'RR' is an opaque type, to maintain the invariants.
@@ -14,7 +19,7 @@ module RERE.Ref (
 import Control.Monad.Fix         (mfix)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.State
-       (State, StateT, evalState, evalStateT, get, modify', put, runState)
+       (State, StateT, evalState, evalStateT, get, modify, put, runState)
 import Data.Void                 (Void, vacuous)
 
 import qualified Data.Map as Map
@@ -23,6 +28,18 @@ import qualified Data.Set as Set
 import           RERE.CharSet
 import qualified RERE.Type    as R
 import           RERE.Var
+
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative ((<$), (<$>), (<*>))
+#endif
+
+#if !MIN_VERSION_base(4,10,0)
+import Data.Semigroup (Semigroup (..))
+#endif
+
+-------------------------------------------------------------------------------
+-- Type
+-------------------------------------------------------------------------------
 
 -- | Knot-tied recursive regular expression.
 data RR
@@ -242,7 +259,7 @@ collectEquation (App r s) = band <$> collectEquation r <*> collectEquation s
 collectEquation (Alt r s) = bor <$> collectEquation r <*> collectEquation s
 collectEquation (Star _)  = return BTrue
 collectEquation (Ref i r) = do
-    modify' (Map.insert i r)
+    modify (Map.insert i r)
     return (BVar i)
 
 

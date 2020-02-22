@@ -1,4 +1,9 @@
-{-# LANGUAGE Safe #-}
+{-# LANGUAGE CPP #-}
+#if __GLASGOW_HASKELL__ >=704
+{-# LANGUAGE Safe              #-}
+#elif __GLASGOW_HASKELL__ >=702
+{-# LANGUAGE Trustworthy       #-}
+#endif
 -- | Absurd i.e. not inhabited types.
 module RERE.Absurd (Absurd (..), vacuous) where
 
