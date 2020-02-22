@@ -35,6 +35,11 @@ import Control.Applicative ((*>))
 import Data.Semigroup (Semigroup (..))
 #endif
 
+-- $setup
+-- >>> import Test.QuickCheck.Random (mkQCGen)
+-- >>> import Test.QuickCheck.Gen (unGen)
+-- >>> let runGen seed = maybe "<<null>>" (\g' -> unGen g' (mkQCGen seed) 10)
+
 -------------------------------------------------------------------------------
 -- * Syntax
 -------------------------------------------------------------------------------
@@ -76,6 +81,12 @@ syntaxExamples = do
 -- >>> matchR ex1 "ababa"
 -- False
 --
+-- >>> runGen 42 (generate 10 20 ex1)
+-- "ababab"
+--
+-- >>> runGen 44 (generate 10 20 ex1)
+-- "abababababababababab"
+--
 ex1 :: RE Void
 ex1 = star_ (ch_ 'a' <> ch_ 'b')
 
@@ -98,6 +109,12 @@ ex1run1 = putLatexTrace ex1 "abab"
 --
 -- >>> matchR ex2 "aaa"
 -- True
+--
+-- >>> runGen 42 (generate 10 20 ex2)
+-- "aaaaaaaaaaa"
+--
+-- >>> runGen 44 (generate 10 20 ex2)
+-- "aaaaaaaaaa"
 --
 ex2 :: RE Void
 ex2 = Let "r" (star_ (ch_ 'a')) (Var B <> Var B)
@@ -126,6 +143,12 @@ ex2run1 = putLatexTrace ex2 "aaa"
 -- >>> matchR ex3 "ababa"
 -- False
 --
+-- >>> runGen 42 (generate 10 20 ex3)
+-- "ab"
+--
+-- >>> runGen 50 (generate 10 20 ex3)
+-- "ababab"
+--
 ex3 :: RE Void
 ex3 = Fix "x" (Eps \/ ch_ 'a' <> ch_ 'b' <> Var B)
 
@@ -143,6 +166,12 @@ ex3run1 = putLatexTrace ex3 "abab"
 --
 -- >>> matchR ex4 "aaaabbbb"
 -- True
+--
+-- >>> runGen 42 (generate 10 20 ex4)
+-- "aabb"
+--
+-- >>> runGen 45 (generate 10 20 ex4)
+-- "aaabbb"
 --
 ex4 :: RE Void
 ex4 = Fix "x" (Eps \/ ch_ 'a' <> Var B <> ch_ 'b')
@@ -168,6 +197,12 @@ ex4run1 = putLatexTrace ex4 "aaaabbbb"
 -- >>> matchR ex5 "ababa"
 -- False
 --
+-- >>> runGen 42 (generate 10 20 ex5)
+-- "ab"
+--
+-- >>> runGen 45 (generate 10 20 ex5)
+-- "ababab"
+--
 ex5 :: RE Void
 ex5 = Fix "x" (Eps \/ Var B <> ch_ 'a' <> ch_ 'b')
 
@@ -178,21 +213,28 @@ ex5run1 = putLatexTrace ex5 "abab"
 -- * Example 6
 -------------------------------------------------------------------------------
 
+-- |
 --
 -- Using fix-point operator:
 --
 -- @
--- fix expr = "(" expr ")" | "1" | "2" | expr "+" expr | expr "*" expr
+-- fix expr = "(" expr ")" | "1" | "2" | ... | "9" | expr "+" expr | expr "*" expr
 -- @
 --
 -- which in BNF is almost he same
 --
 -- @
--- expr ::= "(" expr ")" | "1" | "2" | expr "+" expr | expr "*" expr
+-- expr ::= "(" expr ")" | "1" | "2" | ... | "9" | expr "+" expr | expr "*" expr
 -- @
 --
+-- >>> matchR ex6 "(1+2)*3"
+-- True
+--
+-- >>> runGen 42 (generate 5 5 ex6)
+-- "96+(09493+90790)*19"
+--
 ex6 :: RE Void
-ex6 = Let "d" (ch_ '0' \/ ch_ '1' \/ ch_ '2' \/ ch_ '3')
+ex6 = Let "d" (Ch "0123456789")
     $ Let "n" (Var B <> star_ (Var B))
     $ Fix "e"
     $  ch_ '(' <> Var B <> ch_ ')'
@@ -234,6 +276,14 @@ exCfg =
 exCfgN :: Vec N.Nat5 Name
 exCfgN = "digit" ::: "digits" ::: "term" ::: "mult" ::: "expr" ::: VNil
 
+-- |
+--
+-- >>> matchR ex7 "(1+2)*3"
+-- True
+--
+-- >>> runGen 42 (generate 5 5 ex7)
+-- "(0181+912595*00+((1228)+467+(80)+(216406))*(65)+4+5*5149+994734)"
+--
 ex7 :: Ord a => RE a
 ex7 = cfgToRE exCfgN exCfg
 

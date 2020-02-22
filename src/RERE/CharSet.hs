@@ -5,6 +5,9 @@
 #elif __GLASGOW_HASKELL__ >=702
 {-# LANGUAGE Trustworthy  #-}
 #endif
+-- | Sets of characters.
+--
+-- Using this is more efficint than 'RE.Type.Alt':ng individual characters.
 module RERE.CharSet (
     -- * Set of characters
     CharSet,
