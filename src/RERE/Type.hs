@@ -15,6 +15,7 @@ module RERE.Type (
     RE (..),
     -- * Smart constructors
     ch_, (\/), star_, let_, fix_, (>>>=),
+    string_,
     -- * Operations
     nullable,
     derivative,
@@ -67,8 +68,8 @@ data RE a
     | Fix Name        (RE (Var a))
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
-instance IsString a => IsString (RE a) where
-    fromString = Var . fromString
+instance Ord a => IsString (RE a) where
+    fromString = string_
 
 -------------------------------------------------------------------------------
 -- QuickCheck
@@ -300,6 +301,10 @@ infixl 4 >>>=
 -- | Smart 'Ch', as it takes 'Char' argument.
 ch_ :: Char -> RE a
 ch_ = Ch . singleton
+
+-- | Construct literal 'String' regex.
+string_ :: Ord a => String -> RE a
+string_ = foldr (\c r -> ch_ c <> r) Eps
 
 -- | Smart 'Star'.
 star_ :: RE a -> RE a

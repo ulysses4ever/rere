@@ -14,6 +14,7 @@ module RERE (
     RE (..),
     -- ** Smart constructors
     ch_, (\/), star_, let_, fix_, (>>>=),
+    string_,
     -- ** Operations
     nullable, derivative, compact,
     -- ** Matching
