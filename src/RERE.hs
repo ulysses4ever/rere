@@ -18,6 +18,8 @@ module RERE (
     nullable, derivative, compact,
     -- ** Matching
     match,
+    -- ** Generation
+    generate,
 
     -- * Variables
     Var (..), Name,
@@ -42,6 +44,7 @@ module RERE (
 #endif
     ) where
 
+import RERE.Gen
 import RERE.LaTeX
 import RERE.Ref
 import RERE.Type
