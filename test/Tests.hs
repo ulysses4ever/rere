@@ -29,5 +29,20 @@ main = defaultMain $ testGroup "RERE"
             let xs' = CS.fromList (Set.toList xs)
                 ys' = CS.fromList (Set.toList ys)
             in Set.toList (Set.union xs ys) === CS.toList (CS.union xs' ys')
+        , testProperty "union: left identity" $ \xs ->
+            let xs' = CS.fromList xs
+            in xs' === CS.union CS.empty xs'
+        , testProperty "union: right identity" $ \xs ->
+            let xs' = CS.fromList xs
+            in xs' === CS.union xs' CS.empty
+        , testProperty "union: commutativity" $ \xs ys ->
+            let xs' = CS.fromList xs
+                ys' = CS.fromList ys
+            in CS.union xs' ys' === CS.union ys' xs'
+        , testProperty "union: associativity" $ \xs ys zs ->
+            let xs' = CS.fromList xs
+                ys' = CS.fromList ys
+                zs' = CS.fromList zs
+            in CS.union xs' (CS.union ys' zs') === CS.union (CS.union xs' ys') zs'
         ]
     ]
