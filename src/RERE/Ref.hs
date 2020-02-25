@@ -1,8 +1,8 @@
-{-# LANGUAGE CPP          #-}
+{-# LANGUAGE CPP         #-}
 #if __GLASGOW_HASKELL__ >=704
-{-# LANGUAGE Safe         #-}
+{-# LANGUAGE Safe        #-}
 #elif __GLASGOW_HASKELL__ >=702
-{-# LANGUAGE Trustworthy  #-}
+{-# LANGUAGE Trustworthy #-}
 #endif
 -- | Regular expression with explicit sharing.
 --
@@ -25,7 +25,7 @@ import Data.Void                 (Void, vacuous)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import           RERE.CharSet
+import qualified RERE.CharSet as CS
 import qualified RERE.Type    as R
 import           RERE.Var
 
@@ -44,7 +44,7 @@ import Data.Semigroup (Semigroup (..))
 -- | Knot-tied recursive regular expression.
 data RR
     = Eps
-    | Ch CharSet
+    | Ch CS.CharSet
     | App RR RR
     | Alt RR RR
 #ifdef RERE_INTERSECTION
@@ -151,17 +151,17 @@ newId = do
 -------------------------------------------------------------------------------
 
 nullRR :: RR
-nullRR = Ch empty
+nullRR = Ch CS.empty
 
 fullRR :: RR
-fullRR = Star (Ch universe)
+fullRR = Star (Ch CS.universe)
 
 isNull :: RR -> Bool
-isNull (Ch c) = isEmpty c
+isNull (Ch c) = CS.null c
 isNull _      = False
 
 isFull :: RR -> Bool
-isFull (Star (Ch x)) = x == universe
+isFull (Star (Ch x)) = x == CS.universe
 isFull _             = False
 
 app_ :: RR -> RR -> RR
@@ -175,7 +175,7 @@ alt_ :: RR -> RR -> RR
 alt_ r      s      | isNull r = s
 alt_ r      s      | isNull s = r
 alt_ r      s      | isFull r || isFull s = fullRR
-alt_ (Ch a) (Ch b) = Ch (union a b)
+alt_ (Ch a) (Ch b) = Ch (CS.union a b)
 alt_ r      s      = Alt r s
 
 #ifdef RERE_INTERSECTION
@@ -183,7 +183,7 @@ and_ :: RR -> RR -> RR
 and_ r      s      | isFull r = s
 and_ r      s      | isFull s = r
 and_ r      s      | isNull r || isNull s = nullRR
-and_ (Ch a) (Ch b) = Ch (intersection a b)
+and_ (Ch a) (Ch b) = Ch (CS.intersection a b)
 and_ r      s      = And r s
 #endif
 
@@ -216,9 +216,9 @@ matchR re str = evalState (fromRE' re >>= go str) 0 where
 derivative :: Char -> RR -> M RR
 derivative c rr = evalStateT (go rr) Map.empty where
     go :: RR -> StateT (Map.Map Int RR) M RR
-    go Eps                 = return nullRR
-    go (Ch x) | member c x = return Eps
-              | otherwise  = return nullRR
+    go Eps                    = return nullRR
+    go (Ch x) | CS.member c x = return Eps
+              | otherwise     = return nullRR
 
     go (Alt r s) = do
         r' <- go r

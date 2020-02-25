@@ -32,6 +32,10 @@ main = defaultMain $ testGroup "RERE"
             let xs' = CS.fromList (Set.toList xs)
                 ys' = CS.fromList (Set.toList ys)
             in Set.toList (Set.intersection xs ys) === CS.toList (CS.intersection xs' ys')
+        , testProperty "difference" $ \xs ys ->
+            let xs' = CS.fromList (Set.toList xs)
+                ys' = CS.fromList (Set.toList ys)
+            in Set.toList (Set.difference xs ys) === CS.toList (CS.difference xs' ys')
 
         , testProperty "union: left identity" $ \xs ->
             let xs' = CS.fromList xs
@@ -64,5 +68,13 @@ main = defaultMain $ testGroup "RERE"
                 ys' = CS.fromList ys
                 zs' = CS.fromList zs
             in CS.intersection xs' (CS.intersection ys' zs') === CS.intersection (CS.intersection xs' ys') zs'
+
+        , testProperty "complement intersection is empty" $ \xs ->
+            let xs' = CS.fromList xs
+            in CS.null $ CS.intersection xs' (CS.complement xs')
+
+        , testProperty "complement union is universe" $ \xs ->
+            let xs' = CS.fromList xs
+            in CS.universe == CS.union xs' (CS.complement xs')
         ]
     ]

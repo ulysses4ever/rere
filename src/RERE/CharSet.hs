@@ -18,9 +18,11 @@ module RERE.CharSet (
     insert,
     union,
     intersection,
+    complement,
+    difference,
     -- * Query
     size,
-    isEmpty,
+    null,
     member,
     -- * Conversions
     fromList,
@@ -28,6 +30,8 @@ module RERE.CharSet (
     fromIntervalList,
     toIntervalList,
     ) where
+
+import Prelude hiding (null)
 
 import Data.Char   (chr, ord)
 import Data.List   (foldl', sortBy)
@@ -65,9 +69,9 @@ empty = CS IM.empty
 universe :: CharSet
 universe = CS $ IM.singleton 0 0x10ffff
 
--- | Check whether 'CharSet' is 'empty'. Not named 'null' to avoid name clashes.
-isEmpty :: CharSet -> Bool
-isEmpty (CS cs) = IM.null cs
+-- | Check whether 'CharSet' is 'empty'.
+null :: CharSet -> Bool
+null (CS cs) = IM.null cs
 
 -- | Size of 'CharSet'
 --
@@ -121,6 +125,34 @@ intersectRangeList aset@((x,y):as) bset@((u,v):bs)
    | otherwise = (max x u, v) : intersectRangeList aset bs
 intersectRangeList _ [] = []
 intersectRangeList [] _ = []
+
+-- | Complement of a CharSet
+complement :: CharSet -> CharSet
+complement (CS xs) = CS $ IM.fromList $ complementRangeList (IM.toList xs)
+
+-- | Compute the complement intersected with @[x,)@ assuming @x<u@.
+complementRangeList' :: Int -> [(Int, Int)] -> [(Int, Int)]
+complementRangeList' x ((u,v):s) = (x,pred u) : complementRangeList'' v s
+complementRangeList' x []        = [(x,0x10ffff)]
+
+-- | Compute the complement intersected with @(x,)@.
+complementRangeList'' :: Int -> [(Int, Int)] -> [(Int, Int)]
+complementRangeList'' x s
+    | x == 0x10ffff = []
+    | otherwise     = complementRangeList' (succ x) s
+
+-- | Compute the complement.
+--
+-- Note: we treat Ints as codepoints, i.e minBound is 0, and maxBound is 0x10ffff
+complementRangeList :: [(Int, Int)] -> [(Int, Int)]
+complementRangeList s@((x,y):s')
+    | x == 0    = complementRangeList'' y s'
+    | otherwise = complementRangeList' 0 s
+complementRangeList [] = [(0, 0x10ffff)]
+
+-- | Difference of two 'CharSet's.
+difference :: CharSet -> CharSet -> CharSet
+difference xs ys = intersection xs (complement ys)
 
 -- | Make 'CharSet' from a list of characters, i.e. 'String'.
 fromList :: String -> CharSet
