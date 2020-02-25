@@ -3,8 +3,13 @@ packages: .
 tests:      True
 benchmarks: True
 
+constraints: rere +rere-intersection
+
 -- allow-newer: async-2.2.2:base
 -- allow-newer: dec-0.0.3:base
 -- allow-newer: fin-0.1.1:base
 -- allow-newer: hashable-1.3.0.0:base
 -- allow-newer: vec-0.3:base
+
+package rere
+  ghc-options: -Wall -Werror

@@ -27,6 +27,10 @@ import qualified Data.Fin      as F
 import qualified Data.Type.Nat as N
 #endif
 
+#ifdef RERE_INTERSECTION
+import Data.Void (vacuous)
+#endif
+
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative ((*>))
 #endif
@@ -251,7 +255,7 @@ ex6run1 :: IO ()
 ex6run1 = putLatexTrace ex6 "1*(20+3)"
 
 -------------------------------------------------------------------------------
--- * Example7
+-- * Example 7
 -------------------------------------------------------------------------------
 
 #ifdef RERE_CFG
@@ -312,3 +316,52 @@ ex7parsec = expr where
 
 ex7parsecRun :: IO ()
 ex7parsecRun = P.parseTest ex7parsec "1*(20+3)"
+
+-------------------------------------------------------------------------------
+-- * Example 8
+-------------------------------------------------------------------------------
+
+#ifdef RERE_INTERSECTION
+xnyn :: Name -> Char -> Char -> RE Void
+xnyn n x y = Fix n (Eps \/ ch_ x <> Var B <> ch_ y)
+
+ambncn :: RE Void
+ambncn = star_ (ch_ 'a') <> xnyn "bc" 'b' 'c'
+
+anbncm :: RE Void
+anbncm = xnyn "ab" 'a' 'b' <> star_ (ch_ 'c')
+
+-- |
+--
+-- >>> match ex8 "aabbcc"
+-- True
+--
+-- >>> match ex8 "aabbccc"
+-- False
+--
+-- >>> matchR ex8 "aabbcc"
+-- True
+--
+-- >>> matchR ex8 "aabbccc"
+-- False
+--
+-- >>> runGen 42 (generate 10 20 ex8)
+-- "<<null>>"
+--
+ex8 :: RE Void
+ex8 = ambncn /\ anbncm
+
+ex8run1 :: IO ()
+ex8run1 = putLatexTrace ex8 "aaabbbccc"
+
+-- |
+--
+-- >>> matchR ex8b "aabbccaaabbbccc"
+-- True
+ex8b :: RE Void
+ex8b = Fix "abc" (Eps \/ vacuous ex8 <> Var B)
+
+ex8run2 :: IO ()
+ex8run2 = putLatexTrace ex8b "aabbccaabbcc"
+
+#endif

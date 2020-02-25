@@ -4,8 +4,6 @@ import Test.QuickCheck       ((===))
 import Test.Tasty            (defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
 
-import Debug.Trace
-
 import RERE
 import RERE.Type (derivative1, derivative2)
 
@@ -25,10 +23,16 @@ main = defaultMain $ testGroup "RERE"
             Set.fromList (CS.toList (CS.fromList (Set.toList cs))) === cs
         , testProperty "member" $ \c cs ->
             Set.member c cs === CS.member c (CS.fromList (Set.toList cs))
+
         , testProperty "union" $ \xs ys ->
             let xs' = CS.fromList (Set.toList xs)
                 ys' = CS.fromList (Set.toList ys)
             in Set.toList (Set.union xs ys) === CS.toList (CS.union xs' ys')
+        , testProperty "intersection" $ \xs ys ->
+            let xs' = CS.fromList (Set.toList xs)
+                ys' = CS.fromList (Set.toList ys)
+            in Set.toList (Set.intersection xs ys) === CS.toList (CS.intersection xs' ys')
+
         , testProperty "union: left identity" $ \xs ->
             let xs' = CS.fromList xs
             in xs' === CS.union CS.empty xs'
@@ -44,5 +48,21 @@ main = defaultMain $ testGroup "RERE"
                 ys' = CS.fromList ys
                 zs' = CS.fromList zs
             in CS.union xs' (CS.union ys' zs') === CS.union (CS.union xs' ys') zs'
+
+       , testProperty "intersection: left identity" $ \xs ->
+            let xs' = CS.fromList xs
+            in xs' === CS.intersection CS.universe xs'
+        , testProperty "intersection: right identity" $ \xs ->
+            let xs' = CS.fromList xs
+            in xs' === CS.intersection xs' CS.universe
+        , testProperty "intersection: commutativity" $ \xs ys ->
+            let xs' = CS.fromList xs
+                ys' = CS.fromList ys
+            in CS.intersection xs' ys' === CS.intersection ys' xs'
+        , testProperty "intersection: associativity" $ \xs ys zs ->
+            let xs' = CS.fromList xs
+                ys' = CS.fromList ys
+                zs' = CS.fromList zs
+            in CS.intersection xs' (CS.intersection ys' zs') === CS.intersection (CS.intersection xs' ys') zs'
         ]
     ]

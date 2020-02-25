@@ -47,6 +47,9 @@ data RR
     | Ch CharSet
     | App RR RR
     | Alt RR RR
+#ifdef RERE_INTERSECTION
+    | And RR RR
+#endif
     | Star RR
     | Ref !Int RR
 
@@ -65,6 +68,13 @@ instance Show RR where
             $ showString "Alt"
             . showChar ' ' . go past 11 r
             . showChar ' ' . go past 11 s
+#ifdef RERE_INTERSECTION
+        go past d (And r s)
+            = showParen (d > 10)
+            $ showString "And"
+            . showChar ' ' . go past 11 r
+            . showChar ' ' . go past 11 s
+#endif
         go past d (Star r)
             = showParen (d > 10)
             $ showString "Star"
@@ -87,6 +97,7 @@ fromRE r = evalState (fromRE' r) 0
 fromRE' :: R.RE Void -> M RR
 fromRE' re = go (vacuous re) where
     go R.Null   = return nullRR
+    go R.Full   = return fullRR
     go R.Eps    = return Eps
     go (R.Ch c) = return (Ch c)
 
@@ -99,6 +110,13 @@ fromRE' re = go (vacuous re) where
         r' <- go r
         s' <- go s
         return (alt_ r' s')
+
+#ifdef RERE_INTERSECTION
+    go (R.And r s) = do
+        r' <- go r
+        s' <- go s
+        return (and_ r' s')
+#endif
 
     go (R.Star r) = do
         r' <- go r
@@ -135,9 +153,16 @@ newId = do
 nullRR :: RR
 nullRR = Ch empty
 
+fullRR :: RR
+fullRR = Star (Ch universe)
+
 isNull :: RR -> Bool
 isNull (Ch c) = isEmpty c
 isNull _      = False
+
+isFull :: RR -> Bool
+isFull (Star (Ch x)) = x == universe
+isFull _             = False
 
 app_ :: RR -> RR -> RR
 app_ r    _    | isNull r = r
@@ -149,8 +174,18 @@ app_ r    s    = App r s
 alt_ :: RR -> RR -> RR
 alt_ r      s      | isNull r = s
 alt_ r      s      | isNull s = r
+alt_ r      s      | isFull r || isFull s = fullRR
 alt_ (Ch a) (Ch b) = Ch (union a b)
 alt_ r      s      = Alt r s
+
+#ifdef RERE_INTERSECTION
+and_ :: RR -> RR -> RR
+and_ r      s      | isFull r = s
+and_ r      s      | isFull s = r
+and_ r      s      | isNull r || isNull s = nullRR
+and_ (Ch a) (Ch b) = Ch (intersection a b)
+and_ r      s      = And r s
+#endif
 
 star_ :: RR -> M RR
 star_ r          | isNull r
@@ -184,10 +219,18 @@ derivative c rr = evalStateT (go rr) Map.empty where
     go Eps                 = return nullRR
     go (Ch x) | member c x = return Eps
               | otherwise  = return nullRR
+
     go (Alt r s) = do
         r' <- go r
         s' <- go s
-        return (Alt r' s')
+        return (alt_ r' s')
+
+#ifdef RERE_INTERSECTION
+    go (And r s) = do
+        r' <- go r
+        s' <- go s
+        return (and_ r' s')
+#endif
 
     go (App r s)
         | nullableR r = do
@@ -261,7 +304,9 @@ collectEquation (Star _)  = return BTrue
 collectEquation (Ref i r) = do
     modify (Map.insert i r)
     return (BVar i)
-
+#ifdef RERE_INTERSECTION
+collectEquation (And r s) = band <$> collectEquation r <*> collectEquation s
+#endif
 
 lfp :: BoolExpr -> Map.Map Int BoolExpr -> Bool
 lfp b exprs = go (False <$ exprs) where
