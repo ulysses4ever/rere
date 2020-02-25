@@ -6,3 +6,6 @@ doctest: >=8.4
 constraint-set no-cfg
   ghc: >=7.8
   constraints: rere -rere-cfg
+
+constraint-set intersection
+  constraints: rere +rere-intersection

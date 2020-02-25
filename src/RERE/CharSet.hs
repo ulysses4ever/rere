@@ -13,9 +13,11 @@ module RERE.CharSet (
     CharSet,
     -- * Construction
     empty,
+    universe,
     singleton,
     insert,
     union,
+    intersection,
     -- * Query
     size,
     isEmpty,
@@ -59,6 +61,10 @@ instance Show CharSet where
 empty :: CharSet
 empty = CS IM.empty
 
+-- | universe
+universe :: CharSet
+universe = CS $ IM.singleton 0 0x10ffff
+
 -- | Check whether 'CharSet' is 'empty'. Not named 'null' to avoid name clashes.
 isEmpty :: CharSet -> Bool
 isEmpty (CS cs) = IM.null cs
@@ -100,6 +106,21 @@ insert c (CS m) = normalise (IM.insert (ord c) (ord c) m)
 -- | Union of two 'CharSet's.
 union :: CharSet -> CharSet -> CharSet
 union (CS xs) (CS ys) = normalise (IM.unionWith max xs ys)
+
+-- | Intersection of two 'CharSet's
+intersection :: CharSet -> CharSet -> CharSet
+intersection (CS xs) (CS ys) = CS $
+    IM.fromList (intersectRangeList (IM.toList xs) (IM.toList ys))
+
+-- | Compute the intersection.
+intersectRangeList :: Ord a => [(a, a)] -> [(a, a)] -> [(a, a)]
+intersectRangeList aset@((x,y):as) bset@((u,v):bs)
+   | y < u     = intersectRangeList as bset
+   | v < x     = intersectRangeList aset bs
+   | y < v     = (max x u, y) : intersectRangeList as bset
+   | otherwise = (max x u, v) : intersectRangeList aset bs
+intersectRangeList _ [] = []
+intersectRangeList [] _ = []
 
 -- | Make 'CharSet' from a list of characters, i.e. 'String'.
 fromList :: String -> CharSet

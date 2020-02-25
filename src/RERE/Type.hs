@@ -15,6 +15,9 @@ module RERE.Type (
     RE (..),
     -- * Smart constructors
     ch_, (\/), star_, let_, fix_, (>>>=),
+#ifdef RERE_INTERSECTION
+    (/\),
+#endif
     string_,
     -- * Operations
     nullable,
@@ -57,11 +60,16 @@ import Data.Semigroup (Semigroup (..))
 -- | Regular expression with fixed point.
 data RE a
     = Null
+    | Full
     | Eps
     | Ch CharSet
     | App (RE a) (RE a)
     | Alt (RE a) (RE a)
     | Star (RE a)
+
+#ifdef RERE_INTERSECTION
+    | And (RE a) (RE a)
+#endif
 
     | Var a
     | Let Name (RE a) (RE (Var a))
@@ -148,11 +156,16 @@ nullable = nullable' . fmap (const False)
 
 nullable' :: RE Bool -> Bool
 nullable' Null      = False
+nullable' Full      = True
 nullable' Eps       = True
 nullable' (Ch _)    = False
 nullable' (App r s) = nullable' r && nullable' s
 nullable' (Alt r s) = nullable' r || nullable' s
 nullable' (Star _)  = True
+
+#ifdef RERE_INTERSECTION
+nullable' (And r s) = nullable' r && nullable' s
+#endif
 
 nullable' (Var a)      = a
 nullable' (Let _ r s)  = nullable' (fmap (unvar (nullable' r) id) s)
@@ -170,6 +183,7 @@ derivative2 :: Char -> RE Void -> RE Void
 derivative2 c = go' . vacuous where
     go' :: Ord b => RE (Triple Bool b b) -> RE b
     go' Null = Null
+    go' Full = Full
     go' Eps = Null
     go' (Ch x)
         | member c x = Eps
@@ -180,6 +194,10 @@ derivative2 c = go' . vacuous where
 
     go' (Alt r s) = go' r \/ go' s
     go' r0@(Star r) = go' r <> fmap trdOf3 r0
+
+#ifdef RERE_INTERSECTION
+    go' (And r s) = go' r /\ go' s
+#endif
 
     go' (Var x) = Var (sndOf3 x)
 
@@ -218,6 +236,7 @@ derivative1 c = go absurd where
     -- function to calculate nullability and derivative of a variable
     go :: (Ord a, Ord b) => (a -> Triple Bool b b) -> RE a -> RE b
     go _ Null = Null
+    go _ Full = Full
     go _ Eps   = Null
     go _ (Ch x)
         | member c x = Eps
@@ -227,6 +246,10 @@ derivative1 c = go absurd where
         | otherwise                       =            go f r <> fmap (trdOf3 . f) s
     go f (Alt r s) = go f r \/ go f s
     go f r0@(Star r) = go f r <> fmap (trdOf3 . f) r0
+
+#ifdef RERE_INTERSECTION
+    go f (And r s) = go f r /\ go f s
+#endif
 
     go f (Var a) = Var (sndOf3 (f a))
     go f (Let n r s)
@@ -271,6 +294,7 @@ unused = traverse (unvar Nothing Just)
 -- thus potentially making it smaller.
 compact :: Ord a => RE a -> RE a
 compact r@Null      = r
+compact r@Full      = r
 compact r@Eps       = r
 compact r@(Ch _)    = r
 compact r@(Var _)   = r
@@ -279,6 +303,9 @@ compact (Alt r s)   = compact r \/ compact s
 compact (Star r)    = star_ (compact r)
 compact (Let n r s) = let_ n (compact r) (compact s)
 compact (Fix n r)   = fix_ n r
+#ifdef RERE_INTERSECTION
+compact (And r s)   = compact r /\ compact s
+#endif
 
 -------------------------------------------------------------------------------
 -- smart constructors
@@ -287,14 +314,19 @@ compact (Fix n r)   = fix_ n r
 -- | Variable substitution.
 (>>>=) :: Ord b => RE a -> (a -> RE b) -> RE b
 Null       >>>= _ = Null
+Full       >>>= _ = Full
 Eps        >>>= _ = Eps
 Ch c       >>>= _ = Ch c
 App r s    >>>= k = (r >>>= k) <> (s >>>= k)
 Alt r s    >>>= k = (r >>>= k) \/ (s >>>= k)
 Star r     >>>= k = star_ (r >>>= k)
 Var a      >>>= k = k a
-Let n s r  >>>= k = Let n (s >>>= k) (r >>>= unvar (Var B) (fmap F . k))
-Fix n r1   >>>= k = Fix n (r1 >>>= unvar (Var B) (fmap F . k))
+Let n s r  >>>= k = let_ n (s >>>= k) (r >>>= unvar (Var B) (fmap F . k))
+Fix n r1   >>>= k = fix_ n (r1 >>>= unvar (Var B) (fmap F . k))
+
+#ifdef RERE_INTERSECTION
+And r s    >>>= k = (r >>>= k) /\ (s >>>= k)
+#endif
 
 infixl 4 >>>=
 
@@ -329,10 +361,15 @@ let_ n r s = postlet_ n r (go B (fmap F r) s) where
     go v x y | x == y = Var v
     go _ _ Eps       = Eps
     go _ _ Null      = Null
+    go _ _ Full      = Full
     go _ _ (Ch c)    = Ch c
     go v x (App a b) = App (go v x a) (go v x b)
     go v x (Alt a b) = Alt (go v x a) (go v x b)
     go v x (Star a)  = Star (go v x a)
+
+#ifdef RERE_INTERSECTION
+    go v x (And a b) = And (go v x a) (go v x b)
+#endif
 
     go _ _ (Var v) = Var v
     go v x (Let m a b)
@@ -356,7 +393,7 @@ fix_ _ r
      = Null
 fix_ n (Let m r s)
     | Just r' <- unused r
-    = Let m r' (fix_ n (fmap swapVar s))
+    = let_ m r' (fix_ n (fmap swapVar s))
   where
     swapVar (F (F a)) = F (F a)
     swapVar (F B)     = B
@@ -385,6 +422,8 @@ infixl 5 \/
 r       \/ s       | r == s = r
 Null    \/ r       = r
 r       \/ Null    = r
+Full    \/ _       = Full
+_       \/ Full    = Full
 Ch a    \/ Ch b    = Ch (union a b)
 Eps     \/ r       | nullable r = r
 r       \/ Eps     | nullable r = r
@@ -395,9 +434,39 @@ r       \/ s       = foldr alt' Null $ ordNub (unfoldAlt r . unfoldAlt s $ [])
     alt' x Null = x
     alt' x y    = Alt x y
 
+#ifdef RERE_INTERSECTION
+infixl 6 /\ -- silly CPP
+-- | Smart 'Alt'.
+(/\) :: Ord a => RE a -> RE a -> RE a
+r       /\ s       | r == s = r
+Null    /\ _       = Null
+_       /\ Null    = Null
+Full    /\ r       = r
+r       /\ Full    = r
+Ch a    /\ Ch b    = Ch (intersection a b)
+Eps     /\ r       = if nullable r then Eps else Null
+r       /\ Eps     = if nullable r then Eps else Null
+Let n x r /\ s       = let_ n x (r /\ fmap F s)
+r       /\ Let n x s = let_ n x (fmap F r /\ s)
+r       /\ s       = foldr and' Full $ ordNub (unfoldAnd r . unfoldAnd s $ [])
+  where
+    and' x Full = x
+    and' x y    = And x y
+#endif
+
+-------------------------------------------------------------------------------
+-- Tools
+-------------------------------------------------------------------------------
+
 unfoldAlt :: RE a -> [RE a] -> [RE a]
 unfoldAlt (Alt a b) = unfoldAlt a . unfoldAlt b
 unfoldAlt r         = (r :)
+
+#ifdef RERE_INTERSECTION
+unfoldAnd :: RE a -> [RE a] -> [RE a]
+unfoldAnd (And a b) = unfoldAnd a . unfoldAnd b
+unfoldAnd r         = (r :)
+#endif
 
 ordNub :: (Ord a) => [a] -> [a]
 ordNub = go Set.empty where
