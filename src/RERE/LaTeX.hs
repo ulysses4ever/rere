@@ -5,9 +5,9 @@
 #ifdef RERE_CFG
 {-# LANGUAGE Trustworthy       #-}
 #elif __GLASGOW_HASKELL__ >=704
-{-# LANGUAGE Safe              #-}
+{-# LANGUAGE Safe                #-}
 #elif __GLASGOW_HASKELL__ >=702
-{-# LANGUAGE Trustworthy       #-}
+{-# LANGUAGE Trustworthy         #-}
 #endif
 -- | Pretty-print structures as LaTeX code.
 module RERE.LaTeX (
@@ -25,10 +25,10 @@ import Data.Set                  (Set)
 import Data.String               (IsString (..))
 import Data.Void                 (Void)
 
-import qualified Data.Set as Set
+import qualified Data.Set     as Set
+import qualified RERE.CharSet as CS
 
 import RERE.Absurd
-import RERE.CharSet
 import RERE.Type
 import RERE.Var
 
@@ -107,7 +107,7 @@ latexify' = go BotPrec where
     go _ Null    = return nullPiece
     go _ Full    = return fullPiece
     go _ Eps     = return $ piece $ showString "{\\color{red!80!black}\\varepsilon}"
-    go _ (Ch cs) = case toIntervalList cs of
+    go _ (Ch cs) = case CS.toIntervalList cs of
         []                   -> return nullPiece
         [(lo,hi)] | lo == hi -> return $ "\\mathtt{" <> latexCharPiece lo <> "}"
         xs -> return $ "\\{" <> mconcat (intersperse ", " $ map latexCharRange xs) <> "\\}"

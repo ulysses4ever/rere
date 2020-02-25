@@ -33,10 +33,10 @@ import Data.String (IsString (..))
 import Data.Void   (Void)
 
 import qualified Data.Set        as Set
+import qualified RERE.CharSet    as CS
 import qualified Test.QuickCheck as QC
 
 import RERE.Absurd
-import RERE.CharSet
 import RERE.Tuples
 import RERE.Var
 
@@ -62,7 +62,7 @@ data RE a
     = Null
     | Full
     | Eps
-    | Ch CharSet
+    | Ch CS.CharSet
     | App (RE a) (RE a)
     | Alt (RE a) (RE a)
     | Star (RE a)
@@ -87,7 +87,7 @@ arb :: Ord a => Int -> [QC.Gen a] -> QC.Gen (RE a)
 arb n vars = QC.oneof $
     [ pure Null
     , pure Eps
-    , Ch . singleton <$> QC.elements "abcdef"
+    , Ch . CS.singleton <$> QC.elements "abcdef"
     ] ++
     [ Var <$> g | g <- vars ] ++
     (if n > 1 then [app, alt, st, letG, fixG] else [])
@@ -186,8 +186,8 @@ derivative2 c = go' . vacuous where
     go' Full = Full
     go' Eps = Null
     go' (Ch x)
-        | member c x = Eps
-        | otherwise  = Null
+        | CS.member c x = Eps
+        | otherwise     = Null
     go' (App r s)
         | nullable' (fmap fstOf3 r) = go' s \/ (go' r <> fmap trdOf3 s)
         | otherwise                 =           go' r <> fmap trdOf3 s
@@ -239,8 +239,8 @@ derivative1 c = go absurd where
     go _ Full = Full
     go _ Eps   = Null
     go _ (Ch x)
-        | member c x = Eps
-        | otherwise  = Null
+        | CS.member c x = Eps
+        | otherwise     = Null
     go f (App r s)
         | nullable' (fmap (fstOf3 . f) r) = go f s \/ (go f r <> fmap (trdOf3 . f) s)
         | otherwise                       =            go f r <> fmap (trdOf3 . f) s
@@ -332,7 +332,7 @@ infixl 4 >>>=
 
 -- | Smart 'Ch', as it takes 'Char' argument.
 ch_ :: Char -> RE a
-ch_ = Ch . singleton
+ch_ = Ch . CS.singleton
 
 -- | Construct literal 'String' regex.
 string_ :: Ord a => String -> RE a
@@ -424,7 +424,7 @@ Null    \/ r       = r
 r       \/ Null    = r
 Full    \/ _       = Full
 _       \/ Full    = Full
-Ch a    \/ Ch b    = Ch (union a b)
+Ch a    \/ Ch b    = Ch (CS.union a b)
 Eps     \/ r       | nullable r = r
 r       \/ Eps     | nullable r = r
 Let n x r \/ s       = let_ n x (r \/ fmap F s)
@@ -443,7 +443,7 @@ Null    /\ _       = Null
 _       /\ Null    = Null
 Full    /\ r       = r
 r       /\ Full    = r
-Ch a    /\ Ch b    = Ch (intersection a b)
+Ch a    /\ Ch b    = Ch (CS.intersection a b)
 Eps     /\ r       = if nullable r then Eps else Null
 r       /\ Eps     = if nullable r then Eps else Null
 Let n x r /\ s       = let_ n x (r /\ fmap F s)
