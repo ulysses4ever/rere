@@ -14,6 +14,9 @@ module RERE (
     RE (..),
     -- ** Smart constructors
     ch_, (\/), star_, let_, fix_, (>>>=),
+#ifdef RERE_INTERSECTION
+    (/\),
+#endif
     string_,
     -- ** Operations
     nullable, derivative, compact,

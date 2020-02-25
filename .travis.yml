@@ -4,7 +4,7 @@
 #
 # For more information, see https://github.com/haskell-CI/haskell-ci
 #
-# version: 0.9.20200214
+# version: 0.9.20200225
 #
 version: ~> 1.0
 language: c
@@ -134,6 +134,7 @@ install:
   - |
     echo "packages: ." >> cabal.project
   - |
+    echo "constraints: rere +rere-intersection" >> cabal.project
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(rere)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
@@ -159,6 +160,7 @@ script:
   - |
     echo "packages: ${PKGDIR_rere}" >> cabal.project
   - |
+    echo "constraints: rere +rere-intersection" >> cabal.project
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(rere)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
@@ -183,6 +185,8 @@ script:
   - rm -rf cabal.project.local
   # Constraint set no-cfg
   - if [ $HCNUMVER -ge 70800 ] ; then ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --constraint='rere -rere-cfg' all ; fi
+  # Constraint set intersection
+  - ${CABAL} v2-build $WITHCOMPILER --disable-tests --disable-benchmarks --constraint='rere +rere-intersection' all
 
-# REGENDATA ("0.9.20200214",["--config=cabal.haskell-ci","cabal.project"])
+# REGENDATA ("0.9.20200225",["--config=cabal.haskell-ci","cabal.project"])
 # EOF

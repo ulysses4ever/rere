@@ -62,6 +62,9 @@ putLatex = putStrLn . latexify
 data Prec
     = BotPrec
     | AltPrec
+#ifdef RERE_INTERSECTION
+    | AndPrec
+#endif
     | AppPrec
     | StarPrec
   deriving (Eq, Ord, Enum, Show)
@@ -92,14 +95,21 @@ latexify re0 = unPiece (evalState (latexify' (vacuous re0)) Set.empty) ""
 nullPiece :: Piece
 nullPiece = "{\\color{red!80!black}\\emptyset}"
 
+fullPiece :: Piece
+fullPiece = "{\\color{red!80!black}\\Sigma}"
+
+literalColor :: Piece -> Piece
+literalColor c = "\\color{green!50!black}" <> c
+
 latexify' :: RE Piece -> State (Set NI) Piece
 latexify' = go BotPrec where
     go :: Prec -> RE Piece -> State (Set NI) Piece
     go _ Null    = return nullPiece
+    go _ Full    = return fullPiece
     go _ Eps     = return $ piece $ showString "{\\color{red!80!black}\\varepsilon}"
     go _ (Ch cs) = case toIntervalList cs of
         []                   -> return nullPiece
-        [(lo,hi)] | lo == hi -> return $ fromString $ "\\mathtt{\\color{green!50!black}" ++ latexChar lo ++ "}"
+        [(lo,hi)] | lo == hi -> return $ "\\mathtt{" <> latexCharPiece lo <> "}"
         xs -> return $ "\\{" <> mconcat (intersperse ", " $ map latexCharRange xs) <> "\\}"
 
     go d (App r s) = parens (d > AppPrec) $ do
@@ -112,11 +122,31 @@ latexify' = go BotPrec where
         s'  <- go AltPrec s
         return $ r' <> "\\cup" <>  s'
 
+#ifdef RERE_INTERSECTION
+    go d (And r s) = parens (d > AndPrec) $ do
+        r'  <- go AndPrec r
+        s'  <- go AndPrec s
+        return $ r' <> "\\cap" <>  s'
+#endif
+
     go d (Star r) = parens (d > StarPrec) $ do
         r' <- go StarPrec r
         return (r' <> "^\\star")
 
     go _ (Var x) = return x
+
+    go d (Let n (Fix _ r) s@Let {}) = parens (d > BotPrec) $ do
+        i <- newUnique n
+        let v  = showVar n i
+        let r' = fmap (unvar v id) r
+        let s' = fmap (unvar v id) s
+
+        r2 <- go BotPrec r'
+
+        let acc = "\\begin{aligned}[t] \\mathbf{let}& \\,"
+                <> v <> "=_R" <> r2
+
+        goLet acc s'
 
     go d (Let n r s@Let {}) = parens (d > BotPrec) $ do
         i <- newUnique n
@@ -129,6 +159,20 @@ latexify' = go BotPrec where
                 <> v <> "=" <> r2
 
         goLet acc s'
+
+    go d (Let n (Fix _ r) s) = parens (d > BotPrec) $ do
+        i <- newUnique n
+        let v  = showVar n i
+        let r' = fmap (unvar v id) r
+        let s' = fmap (unvar v id) s
+
+        r2 <- go BotPrec r'
+        s2 <- go BotPrec s'
+
+        return $ "\\mathbf{let}\\,"
+               <> v <> "=_R" <> r2
+               <> "\\,\\mathbf{in}\\,"
+               <> s2
 
     go d (Let n r s) = parens (d > BotPrec) $ do
         i <- newUnique n
@@ -151,7 +195,21 @@ latexify' = go BotPrec where
         r'' <- go BotPrec r'
         return $ piece $ showString "\\mathbf{fix}\\," . unPiece v . showChar '=' . unPiece r''
 
+
     goLet :: Piece -> RE Piece -> State (Set NI) Piece
+    goLet acc0 (Let n (Fix _ r) s) = do
+        i <- newUnique n
+        let v  = showVar n i
+        let r' = fmap (unvar v id) r
+        let s' = fmap (unvar v id) s
+
+        r2 <- go BotPrec r'
+
+        let acc = acc0 <> "; \\\\ &"
+                <> v <> "=" <> r2
+
+        goLet acc s'
+
     goLet acc0 (Let n r s) = do
         i <- newUnique n
         let v  = showVar n i
@@ -181,10 +239,13 @@ latexChar '[' = "\\text{[}"
 latexChar ']' = "\\text{]}"
 latexChar c   = [c]
 
+latexCharPiece :: Char -> Piece
+latexCharPiece c = "{" <> literalColor (fromString (latexChar c)) <> "}"
+
 latexCharRange :: (Char, Char) -> Piece
 latexCharRange (lo, hi)
-    | lo == hi  = fromString $ latexChar lo
-    | otherwise = fromString $ latexChar lo ++ " \\cdots " ++ latexChar hi
+    | lo == hi  = latexCharPiece lo
+    | otherwise = latexCharPiece lo <> " \\cdots " <> latexCharPiece hi
 
 data NI = NI String [Char] Int deriving (Eq, Ord)
 

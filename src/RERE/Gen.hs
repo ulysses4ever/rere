@@ -10,7 +10,7 @@ module RERE.Gen (generate) where
 import Control.Applicative (liftA2)
 import Data.Char           (ord)
 import Data.Void           (Void, vacuous)
-import Test.QuickCheck     (Gen, choose, oneof, frequency)
+import Test.QuickCheck     (Gen, arbitrary, choose, frequency, oneof)
 
 import RERE.CharSet
 import RERE.Type
@@ -45,6 +45,7 @@ generate
 generate starSize fixSize = fmap (fmap ($ "")) . go . vacuous where
     go :: RE (Maybe (Gen ShowS)) -> Maybe (Gen ShowS)
     go Null = Nothing
+    go Full = Just arbitrary
     go Eps  = Just (return id)
     go (Ch c) = case toIntervalList c of
         [] -> Nothing
@@ -68,6 +69,11 @@ generate starSize fixSize = fmap (fmap ($ "")) . go . vacuous where
             if n <= 0
             then return id
             else foldr (\_ acc -> liftA2 (.) acc x') x' [2..n]
+
+#ifdef RERE_INTERSECTION
+    -- this is tricky.
+    go (And _ _) = Nothing
+#endif
 
     go (Var x) = x
     go (Let _ r s)  = go (fmap (unvar (go r) id) s)
