@@ -206,7 +206,7 @@ latexify' = go BotPrec where
         r2 <- go BotPrec r'
 
         let acc = acc0 <> "; \\\\ &"
-                <> v <> "=" <> r2
+                <> v <> "=_R" <> r2
 
         goLet acc s'
 
@@ -245,7 +245,7 @@ latexCharPiece c = "{" <> literalColor (fromString (latexChar c)) <> "}"
 latexCharRange :: (Char, Char) -> Piece
 latexCharRange (lo, hi)
     | lo == hi  = latexCharPiece lo
-    | otherwise = latexCharPiece lo <> " \\cdots " <> latexCharPiece hi
+    | otherwise = latexCharPiece lo <> " \\ldots " <> latexCharPiece hi
 
 data NI = NI String [Char] Int deriving (Eq, Ord)
 
