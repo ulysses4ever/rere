@@ -1,6 +1,7 @@
+{-# LANGUAGE CPP #-}
 module Main (main) where
 
-import Test.QuickCheck       ((===))
+import Test.QuickCheck       (label, (===))
 import Test.Tasty            (defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
 
@@ -10,14 +11,35 @@ import RERE.Type (derivative1, derivative2)
 import qualified Data.Set     as Set
 import qualified RERE.CharSet as CS
 
+topCon :: RE a -> String
+topCon Null    = "Null"
+topCon Full    = "Full"
+topCon Eps     = "Eps"
+topCon Ch {}   = "Ch"
+topCon Alt {}  = "Alt"
+topCon App {}  = "App"
+topCon Star {} = "Star"
+topCon Var {}  = "Var"
+topCon Let {}  = "Let"
+topCon Fix {}  = "Fix"
+#ifdef RERE_INTERSECTION
+topCon And {}  = "And"
+#endif
+
 main :: IO ()
 main = defaultMain $ testGroup "RERE"
     [ testProperty "derivatives" $ \c re ->
+        label (topCon re) $
         derivative1 c re === derivative2 c re
     , testProperty "RR nullable" $ \re ->
+        label (topCon re) $
         nullable re === nullableR (fromRE re)
     , testProperty "RR nullable . derivative" $ \c re ->
+        label (topCon re) $
         nullable (derivative c re) === nullableR (derivativeR c re)
+
+        -- Let "z" (Alt (App Full (Alt Eps (Alt (App (Ch "e") (Ch "cf")) (Ch "")))) (Ch "e")) (Alt (And (Var B) (Ch "c")) (Alt (Ch "e") Eps))
+
     , testGroup "CharSet"
         [ testProperty "fromList . toList" $ \cs ->
             Set.fromList (CS.toList (CS.fromList (Set.toList cs))) === cs
