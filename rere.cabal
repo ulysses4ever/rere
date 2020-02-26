@@ -102,8 +102,10 @@ benchmark simple
   main-is:          Bench.hs
   build-depends:
     , base
+    , containers
     , criterion  ^>=1.5.5.0
     , parsec
+    , derp
     , rere
 
   if (flag(rere-cfg) && impl(ghc >=7.8))
