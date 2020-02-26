@@ -12,4 +12,4 @@ constraints: rere +rere-intersection
 -- allow-newer: vec-0.3:base
 
 package rere
-  ghc-options: -Wall -Werror
+  -- ghc-options: -Wall -Werror
