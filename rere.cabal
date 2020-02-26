@@ -126,5 +126,8 @@ test-suite properties
     , tasty                 ^>=1.2.3
     , tasty-quickcheck      ^>=0.10.1.1
 
+  if flag(rere-intersection)
+    cpp-options: -DRERE_INTERSECTION
+
   if !impl(ghc >=7.4)
     buildable: False

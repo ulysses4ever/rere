@@ -84,24 +84,34 @@ instance Ord a => IsString (RE a) where
 -------------------------------------------------------------------------------
 
 arb :: Ord a => Int -> [QC.Gen a] -> QC.Gen (RE a)
-arb n vars = QC.oneof $
-    [ pure Null
-    , pure Eps
-    , Ch . CS.singleton <$> QC.elements "abcdef"
+arb n vars = QC.frequency $
+    [ (1, pure Null)
+    , (1, pure Full)
+    , (1, pure Eps)
+    , (5, Ch . CS.singleton <$> QC.elements "abcdef")
     ] ++
-    [ Var <$> g | g <- vars ] ++
-    (if n > 1 then [app, alt, st, letG, fixG] else [])
+    [ (10, Var <$> g) | g <- vars ] ++
+    (if n > 1
+     then [ (20, app), (20, alt),  (10, st), (10, letG), (5, fixG)
+#if RERE_INTERSECTION
+          , (10, and_)
+#endif
+          ]
+     else [])
   where
-    app = do
+    alt = binary (\/)
+
+#if RERE_INTERSECTION
+    and_ = binary (/\)
+#endif
+
+    app = binary (<>)
+
+    binary f = do
         m <- QC.choose (0, n)
         x <- arb m vars
         y <- arb (n - m) vars
-        return (x \/ y)
-    alt = do
-        m <- QC.choose (0, n)
-        x <- arb m vars
-        y <- arb (n - m) vars
-        return (x <> y)
+        return (f x y)
 
     st = do
         m <- QC.choose (0, n - 1)
@@ -180,48 +190,48 @@ derivative = derivative1
 -- implementations internally. We are interested in comparing
 -- whether either one is noticeably faster (no).
 derivative2 :: Char -> RE Void -> RE Void
-derivative2 c = go' . vacuous where
-    go' :: Ord b => RE (Triple Bool b b) -> RE b
-    go' Null = Null
-    go' Full = Full
-    go' Eps = Null
-    go' (Ch x)
+derivative2 c = go . vacuous where
+    go :: Ord b => RE (Triple Bool b b) -> RE b
+    go Null = Null
+    go Full = Full
+    go Eps = Null
+    go (Ch x)
         | CS.member c x = Eps
         | otherwise     = Null
-    go' (App r s)
-        | nullable' (fmap fstOf3 r) = go' s \/ (go' r <> fmap trdOf3 s)
-        | otherwise                 =           go' r <> fmap trdOf3 s
+    go (App r s)
+        | nullable' (fmap fstOf3 r) = go s \/ (go r <> fmap trdOf3 s)
+        | otherwise                 =           go r <> fmap trdOf3 s
 
-    go' (Alt r s) = go' r \/ go' s
-    go' r0@(Star r) = go' r <> fmap trdOf3 r0
+    go (Alt r s) = go r \/ go s
+    go r0@(Star r) = go r <> fmap trdOf3 r0
 
 #ifdef RERE_INTERSECTION
-    go' (And r s) = go' r /\ go' s
+    go (And r s) = go r /\ go s
 #endif
 
-    go' (Var x) = Var (sndOf3 x)
+    go (Var x) = Var (sndOf3 x)
 
-    go' (Let n r s)
+    go (Let n r s)
         | Just s' <- unused s
         = let_ n
                (fmap trdOf3 r)
-               (go' (fmap (bimap F F) s'))
+               (go (fmap (bimap F F) s'))
 
         | otherwise
         = let_ n (fmap trdOf3 r)
         $ let_ n' (fmap F r')
-        $ go'
+        $ go
         $ s <&> \var -> case var of
             B   -> T (nullable' (fmap fstOf3 r)) B (F B)
             F x -> bimap (F . F) (F . F) x
       where
-        r' = go' r
+        r' = go r
         n' = derivativeName c n
 
-    go' r0@(Fix n r)
+    go r0@(Fix n r)
         = let_ n (fmap trdOf3 r0)
         $ fix_ n'
-        $ go'
+        $ go
         $ r <&> \var -> case var of
             B   -> T (nullable' (fmap fstOf3 r0)) B (F B)
             F x -> bimap (F . F) (F . F) x
@@ -408,8 +418,9 @@ cheap (Var _) = True
 cheap _       = False
 
 instance Ord a => Semigroup (RE a) where
-    Null     <> _         = Null
-    _         <> Null     = Null
+    Null      <> _         = Null
+    _         <> Null      = Null
+    Full      <> Full      = Full
     Eps       <> r         = r
     r         <> Eps       = r
     Let n x r <> s         = let_ n x (r <> fmap F s)
@@ -444,8 +455,9 @@ _       /\ Null    = Null
 Full    /\ r       = r
 r       /\ Full    = r
 Ch a    /\ Ch b    = Ch (CS.intersection a b)
-Eps     /\ r       = if nullable r then Eps else Null
-r       /\ Eps     = if nullable r then Eps else Null
+-- nullable is not precise here, so we cannot return Null when non nullable.
+Eps     /\ r       | nullable r = Eps
+r       /\ Eps     | nullable r = Eps
 Let n x r /\ s       = let_ n x (r /\ fmap F s)
 r       /\ Let n x s = let_ n x (fmap F r /\ s)
 r       /\ s       = foldr and' Full $ ordNub (unfoldAnd r . unfoldAnd s $ [])
