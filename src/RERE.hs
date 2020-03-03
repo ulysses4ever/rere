@@ -26,7 +26,8 @@ module RERE (
     generate,
 
     -- * Variables
-    Var (..), Name,
+    Var (..), unvar,
+    Name,
 
     -- * Context-free grammars
 #ifdef RERE_CFG
@@ -35,10 +36,15 @@ module RERE (
 #endif
 
     -- * Faster matching
-    matchR,
-    -- ** Utilities
-    -- | These are exported for tests, they aren't useful otherwise.
-    RR, fromRE, nullableR, derivativeR,
+    -- ** Ref
+    RR, matchR, matchDebugR,
+    -- ** ST
+    RST, matchST, matchDebugST,
+
+    -- * Character classes
+    CharClasses,
+    charClasses,
+    classOfChar,
 
     -- * Pretty printing (as LaTeX)
     putLatex,
@@ -48,9 +54,11 @@ module RERE (
 #endif
     ) where
 
+import RERE.CharClasses
 import RERE.Gen
 import RERE.LaTeX
 import RERE.Ref
+import RERE.ST
 import RERE.Type
 import RERE.Var
 

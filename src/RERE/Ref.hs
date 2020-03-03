@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP         #-}
-#if __GLASGOW_HASKELL__ >=704
+#if __GLASGOW_HASKELL__ >=710
 {-# LANGUAGE Safe        #-}
 #elif __GLASGOW_HASKELL__ >=702
 {-# LANGUAGE Trustworthy #-}
@@ -9,12 +9,8 @@
 -- 'RR' is an opaque type, to maintain the invariants.
 module RERE.Ref (
     RR,
-    fromRE,
-    nullableR,
-    derivativeR,
-    matchR,
+    matchR, matchDebugR,
     ) where
-
 
 import Control.Monad.Fix         (mfix)
 import Control.Monad.Trans.Class (lift)
@@ -25,8 +21,9 @@ import Data.Void                 (Void, vacuous)
 import qualified Data.Map as Map
 import qualified Data.Set as Set
 
-import qualified RERE.CharSet as CS
-import qualified RERE.Type    as R
+import           RERE.CharClasses
+import qualified RERE.CharSet     as CS
+import qualified RERE.Type        as R
 import           RERE.Var
 
 #if !MIN_VERSION_base(4,8,0)
@@ -37,25 +34,28 @@ import Control.Applicative ((<$), (<$>), (<*>))
 import Data.Semigroup (Semigroup (..))
 #endif
 
+import Control.Monad.ST
+import Data.STRef
+
 -------------------------------------------------------------------------------
 -- Type
 -------------------------------------------------------------------------------
 
 -- | Knot-tied recursive regular expression.
-data RR
+data RR s
     = Eps
     | Ch CS.CharSet
-    | App RR RR
-    | Alt RR RR
+    | App (RR s) (RR s)
+    | Alt (RR s) (RR s)
 #ifdef RERE_INTERSECTION
-    | And RR RR
+    | And (RR s) (RR s)
 #endif
-    | Star RR
-    | Ref !Int RR
+    | Star (RR s)
+    | Ref !Int !(STRef s (Map.Map Char (RR s))) (RR s)
 
-instance Show RR where
+instance Show (RR s) where
     showsPrec = go Set.empty where
-        go :: Set.Set Int -> Int -> RR -> ShowS
+        go :: Set.Set Int -> Int -> RR s -> ShowS
         go _    _ Eps       = showString "Eps"
         go _    d (Ch c)    = showParen (d > 10) $ showString "Ch " . showsPrec 11 c
         go past d (App r s)
@@ -80,7 +80,7 @@ instance Show RR where
             $ showString "Star"
             . showChar ' ' . go past 11 r
 
-        go past d (Ref i r)
+        go past d (Ref i _ r)
             | Set.member i past = showParen (d > 10)
             $ showString "Ref " . showsPrec 11 i . showString " <<loop>>"
             | otherwise         = showParen (d > 10)
@@ -91,11 +91,8 @@ instance Show RR where
 -------------------------------------------------------------------------------
 
 -- | Convert 'R.RE' to 'RR'.
-fromRE :: R.RE Void -> RR
-fromRE r = evalState (fromRE' r) 0
-
-fromRE' :: R.RE Void -> M RR
-fromRE' re = go (vacuous re) where
+fromRE :: R.RE Void -> M s (RR s)
+fromRE re = go (vacuous re) where
     go R.Null   = return nullRR
     go R.Full   = return fullRR
     go R.Eps    = return Eps
@@ -120,58 +117,89 @@ fromRE' re = go (vacuous re) where
 
     go (R.Star r) = do
         r' <- go r
-        star_ r'
+        return (star_ r')
 
     go (R.Var r) = return r
 
     go (R.Let _ r s) = do
         r' <- go r
-        i <- newId
-        go (fmap (unvar (Ref i r') id) s)
+        -- it looks like we shouldn't memoize here
+        -- both simple and json benchmark are noticeably faster.
+        go (fmap (unvar r' id) s)
 
     go (R.Fix _ r) = mfix $ \res -> do
         i <- newId
+        ref <- lift (newSTRef Map.empty)
         r' <- go (fmap (unvar res id) r)
-        return (Ref i r')
+        return (Ref i ref r')
+
+_size :: RR s -> Int
+_size rr = evalState (go rr) Set.empty where
+    go Eps       = return 1
+    go (Ch _)    = return 1
+    go (App r s) = plus1 <$> go r <*> go s
+    go (Alt r s) = plus1 <$> go r <*> go s
+#ifdef RERE_INTERSECTION
+    go (And r s) = plus1 <$> go r <*> go s
+#endif
+    go (Star r)  = succ <$> go r
+    go (Ref i _ r) = do
+        visited <- get
+        if Set.member i visited
+        then return 1
+        else do
+            put (Set.insert i visited)
+            succ <$> go r
+
+    plus1 x y = succ (x + y)
 
 -------------------------------------------------------------------------------
 -- Variable supply monad
 -------------------------------------------------------------------------------
 
-type M = State Int
+type M s = StateT Int (ST s)
 
-newId :: M Int
+newId :: M s Int
 newId = do
     i <- get
     put $! i + 1
     return i
 
+_returnI :: RR s -> M s (RR s)
+_returnI r@Eps    = return r
+_returnI r@Ch {}  = return r
+_returnI r@Ref {} = return r
+_returnI r = do
+    i <- newId
+    ref <- lift (newSTRef Map.empty)
+    return (Ref i ref r)
+
 -------------------------------------------------------------------------------
 -- Smart constructors
 -------------------------------------------------------------------------------
 
-nullRR :: RR
+nullRR :: RR s
 nullRR = Ch CS.empty
 
-fullRR :: RR
+fullRR :: RR s
 fullRR = Star (Ch CS.universe)
 
-isNull :: RR -> Bool
+isNull :: RR s -> Bool
 isNull (Ch c) = CS.null c
 isNull _      = False
 
-isFull :: RR -> Bool
+isFull :: RR s -> Bool
 isFull (Star (Ch x)) = x == CS.universe
 isFull _             = False
 
-app_ :: RR -> RR -> RR
+app_ :: RR s -> RR s -> RR s
 app_ r    _    | isNull r = r
 app_ _    r    | isNull r = r
 app_ Eps  r    = r
 app_ r    Eps  = r
 app_ r    s    = App r s
 
-alt_ :: RR -> RR -> RR
+alt_ :: RR s -> RR s -> RR s
 alt_ r      s      | isNull r = s
 alt_ r      s      | isNull s = r
 alt_ r      s      | isFull r || isFull s = fullRR
@@ -179,7 +207,7 @@ alt_ (Ch a) (Ch b) = Ch (CS.union a b)
 alt_ r      s      = Alt r s
 
 #ifdef RERE_INTERSECTION
-and_ :: RR -> RR -> RR
+and_ :: RR s -> RR s -> RR s
 and_ r      s      | isFull r = s
 and_ r      s      | isFull s = r
 and_ r      s      | isNull r || isNull s = nullRR
@@ -187,12 +215,12 @@ and_ (Ch a) (Ch b) = Ch (CS.intersection a b)
 and_ r      s      = And r s
 #endif
 
-star_ :: RR -> M RR
+star_ :: RR s -> RR s
 star_ r          | isNull r
-                 = return Eps
-star_ Eps        = return Eps
-star_ r@(Star _) = return r
-star_ r          = return (Star r)
+                 = Eps
+star_ Eps        = Eps
+star_ r@(Star _) = r
+star_ r          = Star r
 
 -------------------------------------------------------------------------------
 -- Match
@@ -203,19 +231,48 @@ star_ r          = return (Star r)
 -- Significantly faster than 'RERE.Type.match'.
 --
 matchR :: R.RE Void -> String -> Bool
-matchR re str = evalState (fromRE' re >>= go str) 0 where
-    go []     rr = return $ nullableR rr
-    go (c:cs) rr = do
-        rr' <- derivative c rr
-        go cs rr'
+matchR re str = runST (evalStateT (fromRE re >>= go0) 0)
+  where
+    go0 :: RR s -> M s Bool
+    go0 rr = do
+        let cc = charClasses re
+        go cc str rr
+
+    go :: CharClasses -> String -> RR s -> M s Bool
+    go _  []     rr = return $ nullableR rr
+    go cc (c:cs) rr = do
+        let c' = classOfChar cc c
+        rr' <- derivative c' rr
+        go cc cs rr'
+
+-- | Match and print final 'RR' + stats.
+matchDebugR :: R.RE Void -> String -> IO ()
+matchDebugR re str = runST (evalStateT (fromRE re >>= go0) 0)
+  where
+    go0 :: RR s -> M s (IO ())
+    go0 rr = do
+        let cc = charClasses re
+        go cc str rr
+
+    go :: CharClasses -> String -> RR s -> M s (IO ())
+    go _  []     rr = return $ putStr $ unlines
+            [ "size: " ++ show (_size rr)
+            , "show: " ++ show rr
+            , "null: " ++ show (nullableR rr)
+            ]
+
+    go cc (c:cs) rr = do
+        let c' = classOfChar cc c
+        rr' <- derivative c' rr
+        go cc cs rr'
 
 -------------------------------------------------------------------------------
 -- Derivative
 -------------------------------------------------------------------------------
 
-derivative :: Char -> RR -> M RR
-derivative c rr = evalStateT (go rr) Map.empty where
-    go :: RR -> StateT (Map.Map Int RR) M RR
+derivative :: Char -> RR s -> M s (RR s)
+derivative c = go where
+    go :: RR s -> M s (RR s)
     go Eps                    = return nullRR
     go (Ch x) | CS.member c x = return Eps
               | otherwise     = return nullRR
@@ -245,26 +302,16 @@ derivative c rr = evalStateT (go rr) Map.empty where
         r' <- go r
         return (app_ r' r0)
 
-    go (Ref i r) = do
-        m <- get
-        case Map.lookup i m of
+    go (Ref _ ref r) = do
+        m <- lift (readSTRef ref)
+        case Map.lookup c m of
             Just r' -> return r'
             Nothing -> mfix $ \res -> do
-                j <- lift newId
-                put (Map.insert i res m)
+                j <- newId
+                ref' <- lift (newSTRef Map.empty)
+                lift (writeSTRef ref (Map.insert c res m))
                 r' <- go r
-                return (Ref j r')
-
--- | Convert 'R.RE' to 'RR' and differentiate once.
---
--- @
--- 'R.nullable' ('R.derivative' c re) = 'nullableR' ('derivativeR' c re)
--- @
-derivativeR :: Char -> R.RE Void -> RR
-derivativeR c re = evalState action 0 where
-    action = do
-        rr <- fromRE' re
-        derivative c rr
+                return (Ref j ref' r')
 
 -------------------------------------------------------------------------------
 -- Nullable equations
@@ -275,17 +322,17 @@ derivativeR c re = evalState action 0 where
 -- @
 -- 'R.nullable' re = 'nullableR' ('fromRE' re)
 -- @
-nullableR :: RR -> Bool
+nullableR :: RR s -> Bool
 nullableR r =
     let (bexpr, eqs) = equations r
     in lfp bexpr eqs
 
-equations :: RR -> (BoolExpr, Map.Map Int BoolExpr)
+equations :: RR s -> (BoolExpr, Map.Map Int BoolExpr)
 equations r =
     let (bexpr, next) = runState (collectEquation r) Map.empty
     in (bexpr, collectEquations next)
 
-collectEquations :: Map.Map Int RR -> Map.Map Int BoolExpr
+collectEquations :: Map.Map Int (RR s)-> Map.Map Int BoolExpr
 collectEquations = go Map.empty where
     go acc queue = case Map.minViewWithKey queue of
         Nothing               -> acc
@@ -295,13 +342,13 @@ collectEquations = go Map.empty where
                 let (bexpr, next) = runState (collectEquation r) Map.empty
                 in go (Map.insert i bexpr acc) (queue' <> next)
 
-collectEquation :: RR -> State (Map.Map Int RR) BoolExpr
+collectEquation :: RR s -> State (Map.Map Int (RR s)) BoolExpr
 collectEquation Eps       = return BTrue
-collectEquation (Ch _)    = return  BFalse
+collectEquation (Ch _)    = return BFalse
 collectEquation (App r s) = band <$> collectEquation r <*> collectEquation s
 collectEquation (Alt r s) = bor <$> collectEquation r <*> collectEquation s
 collectEquation (Star _)  = return BTrue
-collectEquation (Ref i r) = do
+collectEquation (Ref i _ r) = do
     modify (Map.insert i r)
     return (BVar i)
 #ifdef RERE_INTERSECTION

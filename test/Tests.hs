@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 module Main (main) where
 
-import Test.QuickCheck       (label, (===))
+import Test.QuickCheck       (label, (===), property)
 import Test.Tasty            (defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
 
@@ -10,6 +10,8 @@ import RERE.Type (derivative1, derivative2)
 
 import qualified Data.Set     as Set
 import qualified RERE.CharSet as CS
+
+import Control.Monad.ST (runST)
 
 topCon :: RE a -> String
 topCon Null    = "Null"
@@ -33,12 +35,15 @@ main = defaultMain $ testGroup "RERE"
         derivative1 c re === derivative2 c re
     , testProperty "RR nullable" $ \re ->
         label (topCon re) $
-        nullable re === nullableR (fromRE re)
-    , testProperty "RR nullable . derivative" $ \c re ->
+        match re ""  === matchR re ""
+     , testProperty "RR nullable . derivative^2" $ \c d re ->
         label (topCon re) $
-        nullable (derivative c re) === nullableR (derivativeR c re)
-
-        -- Let "z" (Alt (App Full (Alt Eps (Alt (App (Ch "e") (Ch "cf")) (Ch "")))) (Ch "e")) (Alt (And (Var B) (Ch "c")) (Alt (Ch "e") Eps))
+        label (topCon (derivative d (derivative c re))) $
+        match re [c,d] === matchR re [c,d]
+     , testProperty "RR nullable . derivative^3" $ \c d e re ->
+        label (topCon re) $
+        label (topCon (derivative c (derivative d (derivative c re)))) $
+        match re [c,d,e] === matchR re [c,d,e]
 
     , testGroup "CharSet"
         [ testProperty "fromList . toList" $ \cs ->

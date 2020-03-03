@@ -42,7 +42,9 @@ import Data.Semigroup (Semigroup (..))
 -- $setup
 -- >>> import Test.QuickCheck.Random (mkQCGen)
 -- >>> import Test.QuickCheck.Gen (unGen)
+-- >>> import Control.Monad.ST (runST)
 -- >>> let runGen seed = maybe "<<null>>" (\g' -> unGen g' (mkQCGen seed) 10)
+-- >>> let showRef re = matchDebugR re ""
 
 -------------------------------------------------------------------------------
 -- * Syntax
@@ -76,8 +78,13 @@ syntaxExamples = do
 -- >>> ex1
 -- Star (App (Ch "a") (Ch "b"))
 --
--- >>> fromRE ex1
--- Star (App (Ch "a") (Ch "b"))
+-- >>> charClasses ex1
+-- fromList "\NULabc"
+--
+-- >>> showRef ex1
+-- size: 4
+-- show: Star (App (Ch "a") (Ch "b"))
+-- null: True
 --
 -- >>> matchR ex1 "abab"
 -- True
@@ -108,10 +115,12 @@ ex1run1 = putLatexTrace ex1 "abab"
 --
 -- Note: how "sharing" is preserved.
 --
--- >>> fromRE ex2
--- App (Ref 0 (Star (Ch "a"))) (Ref 0 (Star (Ch "a")))
+-- >>> showRef ex2
+-- size: 5
+-- show: App (Star (Ch "a")) (Star (Ch "a"))
+-- null: True
 --
--- >>> matchR ex2 "aaa"
+-- >> matchR ex2 "aaa"
 -- True
 --
 -- >>> runGen 42 (generate 10 20 ex2)
@@ -138,8 +147,10 @@ ex2run1 = putLatexTrace ex2 "aaa"
 -- >>> match ex3 "ababa"
 -- False
 --
--- >>> fromRE ex3
--- Ref 0 (Alt Eps (App (Ch "a") (App (Ch "b") (Ref 0 ...))))
+-- >>> showRef ex3
+-- size: 8
+-- show: Ref 0 (Alt Eps (App (Ch "a") (App (Ch "b") (Ref 0 <<loop>>))))
+-- null: True
 --
 -- >>> matchR ex3 "abab"
 -- True
@@ -168,6 +179,11 @@ ex3run1 = putLatexTrace ex3 "abab"
 -- >>> match ex4 "aaaabbbb"
 -- True
 --
+-- >>> showRef ex4
+-- size: 8
+-- show: Ref 0 (Alt Eps (App (Ch "a") (App (Ref 0 <<loop>>) (Ch "b"))))
+-- null: True
+--
 -- >>> matchR ex4 "aaaabbbb"
 -- True
 --
@@ -194,6 +210,11 @@ ex4run1 = putLatexTrace ex4 "aaaabbbb"
 --
 -- >>> match ex5 "ababa"
 -- False
+--
+-- >>> showRef ex5
+-- size: 8
+-- show: Ref 0 (Alt Eps (App (Ref 0 <<loop>>) (App (Ch "a") (Ch "b"))))
+-- null: True
 --
 -- >>> matchR ex5 "abab"
 -- True
@@ -282,8 +303,14 @@ exCfgN = "digit" ::: "digits" ::: "term" ::: "mult" ::: "expr" ::: VNil
 
 -- |
 --
+-- >>> matchR ex7 "12"
+-- True
+--
 -- >>> matchR ex7 "(1+2)*3"
 -- True
+--
+-- >>> charClasses ex7
+-- fromList "\NUL()*+,0:"
 --
 -- >>> runGen 42 (generate 5 5 ex7)
 -- "(0181+912595*00+((1228)+467+(80)+(216406))*(65)+4+5*5149+994734)"
@@ -339,10 +366,10 @@ anbncm = xnyn "ab" 'a' 'b' <> star_ (ch_ 'c')
 -- >>> match ex8 "aabbccc"
 -- False
 --
--- >>> matchR ex8 "aabbcc"
+-- >> matchR ex8 "aabbcc"
 -- True
 --
--- >>> matchR ex8 "aabbccc"
+-- >> matchR ex8 "aabbccc"
 -- False
 --
 -- >>> runGen 42 (generate 10 20 ex8)
@@ -356,7 +383,7 @@ ex8run1 = putLatexTrace ex8 "aaabbbccc"
 
 -- |
 --
--- >>> matchR ex8b "aabbccaaabbbccc"
+-- >> matchR ex8b "aabbccaaabbbccc"
 -- True
 ex8b :: RE Void
 ex8b = Fix "abc" (Eps \/ vacuous ex8 <> Var B)

@@ -19,6 +19,7 @@ module RERE.LaTeX (
     ) where
 
 import Control.Monad.Trans.State (State, evalState, get, put)
+import Data.Char                 (ord)
 import Data.Foldable             (for_)
 import Data.List                 (intersperse)
 import Data.Set                  (Set)
@@ -98,9 +99,6 @@ nullPiece = "{\\color{red!80!black}\\emptyset}"
 fullPiece :: Piece
 fullPiece = "{\\color{red!80!black}\\Sigma}"
 
-literalColor :: Piece -> Piece
-literalColor c = "\\color{green!50!black}" <> c
-
 latexify' :: RE Piece -> State (Set NI) Piece
 latexify' = go BotPrec where
     go :: Prec -> RE Piece -> State (Set NI) Piece
@@ -111,6 +109,8 @@ latexify' = go BotPrec where
         []                   -> return nullPiece
         [(lo,hi)] | lo == hi -> return $ "\\mathtt{" <> latexCharPiece lo <> "}"
         xs -> return $ "\\{" <> mconcat (intersperse ", " $ map latexCharRange xs) <> "\\}"
+      where
+        
 
     go d (App r s) = parens (d > AppPrec) $ do
         r'  <- go AppPrec r
@@ -230,17 +230,24 @@ latexify' = go BotPrec where
     parens True  = fmap $ \(Piece _ _ x) -> piece $ showChar '(' . x . showChar ')'
     parens False = id
 
+literalColor :: String 
+literalColor = "\\color{green!50!black}"
+
 latexChar :: Char -> String
-latexChar '*' = "\\text{*}"
-latexChar '+' = "\\text{+}"
-latexChar '(' = "\\text{(}"
-latexChar ')' = "\\text{)}"
-latexChar '[' = "\\text{[}"
-latexChar ']' = "\\text{]}"
-latexChar c   = [c]
+latexChar '*'  = "\\text{" ++ literalColor ++ "*}"
+latexChar '+'  = "\\text{" ++ literalColor ++ "+}"
+latexChar '('  = "\\text{" ++ literalColor ++ "(}"
+latexChar ')'  = "\\text{" ++ literalColor ++ ")}"
+latexChar '['  = "\\text{" ++ literalColor ++ "[}"
+latexChar ']'  = "\\text{" ++ literalColor ++ "]}"
+latexChar '\\' = "\\text{" ++ literalColor ++ "\\textbackslash}"
+latexChar '#'  = "\\text{" ++ literalColor ++ "\\#}"
+latexChar c
+    | c <= '\x20' || c >= '\127' = show (ord c)
+    | otherwise                  = "{" ++ literalColor ++ [c] ++ "}"
 
 latexCharPiece :: Char -> Piece
-latexCharPiece c = "{" <> literalColor (fromString (latexChar c)) <> "}"
+latexCharPiece c = "{" <> fromString (latexChar c) <> "}"
 
 latexCharRange :: (Char, Char) -> Piece
 latexCharRange (lo, hi)
@@ -335,4 +342,7 @@ latexifyCfg names cfg =
 
         eq' :: String
         eq' = unPiece (evalState eq Set.empty) ""
+#if __GLASGOW_HASKELL__  <711
+    go _ _ = error "silly GHC"
+#endif
 #endif

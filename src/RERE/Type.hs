@@ -133,6 +133,25 @@ arb n vars = QC.frequency $
 
 instance (Absurd a, Ord a) => QC.Arbitrary (RE a) where
     arbitrary = QC.sized $ \n -> arb n []
+    shrink    = shr
+    
+shr :: RE a -> [RE a]
+shr Null   = []
+shr Eps    = [Null]
+shr Full   = [Eps]
+shr (Ch _) = [Null, Eps]
+
+shr (App r s) = r : s : map (uncurry App) (QC.liftShrink2 shr shr (r, s))
+shr (Alt r s) = r : s : map (uncurry Alt) (QC.liftShrink2 shr shr (r, s))
+shr (Star r)  = r : map Star (shr r)
+
+#ifdef RERE_INTERSECTION
+shr (And r s) = r : s :  map (uncurry And) (QC.liftShrink2 shr shr (r, s))
+#endif
+
+shr (Var _) = []
+shr (Let n r s) = r : map (uncurry (Let n)) (QC.liftShrink2 shr shr (r, s))
+shr (Fix n r) = map (Fix n) (shr r)
 
 arbName :: QC.Gen Name
 arbName = QC.elements ["x","y","z"]
@@ -346,12 +365,15 @@ ch_ = Ch . CS.singleton
 
 -- | Construct literal 'String' regex.
 string_ :: Ord a => String -> RE a
-string_ = foldr (\c r -> ch_ c <> r) Eps
+string_ []  = Eps
+string_ [c] = ch_ c
+string_ xs  = foldr (\c r -> ch_ c <> r) Eps xs
 
 -- | Smart 'Star'.
 star_ :: RE a -> RE a
 star_ Null       = Eps
 star_ Eps        = Eps
+star_ Full       = Full
 star_ r@(Star _) = r
 star_ r          = Star r
 
@@ -396,19 +418,40 @@ postlet_ n r s       = Let n r s
 
 -- | Smart 'Fix'.
 fix_ :: Ord a => Name -> RE (Var a) -> RE a
-fix_ _ r
-    | Just r' <- unused r
+fix_ n r
+    | Just r' <- traverse (unvar Nothing Just) r
     = r'
     | (r >>>= unvar Null Var) == Null
      = Null
-fix_ n (Let m r s)
-    | Just r' <- unused r
-    = let_ m r' (fix_ n (fmap swapVar s))
+    | Just r' <- floatOut r (unvar Nothing Just) (fix_ n)
+    = r'
   where
-    swapVar (F (F a)) = F (F a)
-    swapVar (F B)     = B
-    swapVar B         = F B
+-- fix_ n (Let m r s)
+--     | Just r' <- traverse (unvar Nothing Just) r
+--     = let_ m r' (fix_ n (fmap swapVar s))
 fix_ n r = Fix n r
+
+swapVar :: Var (Var a) -> Var (Var a)
+swapVar (F (F a)) = F (F a)
+swapVar (F B)     = B
+swapVar B         = F B
+
+floatOut
+    :: (Ord a, Ord b)
+    => RE (Var a)                        -- ^ expression
+    -> (Var a -> Maybe b)                -- ^ float out var
+    -> (RE (Var (Var a)) -> RE (Var b))  -- ^ binder
+    -> Maybe (RE b)                      -- ^ maybe an expression with let floaten out
+floatOut (Let m r s) un mk
+    | Just r' <- traverse un r
+    = Just
+    $ Let m r' $ mk $ fmap swapVar s
+    | otherwise
+    = floatOut
+        s
+        (unvar Nothing un)
+        (mk . Let m (fmap (fmap F) r) . fmap (fmap swapVar))
+floatOut _ _ _ = Nothing
 
 cheap :: RE a -> Bool
 cheap Eps     = True

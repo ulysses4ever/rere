@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE DataKinds           #-}
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -66,6 +67,9 @@ newtype CfgToRE n a = CfgToRE { getCfgToRE :: Vec ('S n) Name -> CFG ('S n) a ->
 baseCase :: Ord a => Vec N.Nat1 Name -> CFG N.Nat1 a -> RE a
 baseCase (name ::: VNil) (cfg ::: VNil) =
     fix_ name (fmap (either (\FZ -> B) F) cfg)
+#if __GLASGOW_HASKELL__  <711
+baseCase _ _ = error "silly GHC"
+#endif
 
 consCase
     :: forall a n. Ord a

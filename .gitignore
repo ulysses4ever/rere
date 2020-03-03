@@ -2,3 +2,6 @@ dist/
 dist-newstyle/
 .ghc.environment.*
 bench.html
+
+# miranda
+*.x
