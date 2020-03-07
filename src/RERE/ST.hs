@@ -287,6 +287,7 @@ matchST re str = runST go0
 #endif
         go ctx cc cs rr''
 
+-- | Match and print final 'RR' + stats.
 matchDebugST :: R.RE Void -> String -> IO ()
 matchDebugST re str = runST go0 where
     go0 :: ST s (IO ())

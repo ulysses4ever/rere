@@ -1,2 +1,2 @@
 doctest :  
-	doctest -DRERE_CFG -DRERE_INTERSECTION src
+	doctest -DRERE_INTERSECTION src

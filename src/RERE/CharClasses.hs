@@ -4,6 +4,7 @@
 #elif __GLASGOW_HASKELL__ >=702
 {-# LANGUAGE Trustworthy #-}
 #endif
+-- | Charactor classes.
 module RERE.CharClasses (
     CharClasses,
     charClasses,
@@ -15,6 +16,7 @@ import RERE.Type
 import qualified Data.Set     as Set
 import qualified RERE.CharSet as CS
 
+-- | Character classes are represented by partition lower bounds.
 type CharClasses = Set.Set Char
 
 -- | Character classes.
@@ -28,6 +30,7 @@ type CharClasses = Set.Set Char
 charClasses :: RE a -> CharClasses
 charClasses = charsetClasses . Set.toList . collect
 
+-- | Map char to the representer of a class.
 classOfChar :: CharClasses -> Char -> Char
 #if MIN_VERSION_containers(0,5,0)
 classOfChar cc c = case Set.lookupLE c cc of

@@ -14,7 +14,7 @@ import qualified Data.Set as Set
 import Control.Applicative ((<*))
 #endif
 
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
 import RERE          (match, matchR, matchST)
 import RERE.Examples (ex7)
 #endif
@@ -38,47 +38,47 @@ derp p s = not $ Set.null $ D.runParse p [ D.Token c [c] | c <- s]
 main :: IO ()
 main = do
     print $ parsec  ex7parsec input
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
     print $ match   ex7       input
     print $ matchR  ex7       input
     print $ matchST ex7       input
 #endif
     print $ derp    ex7derp   input
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
     print $ derp    ex7derp'  input
 #endif
 
     print $ parsec  ex7parsec input2
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
     print $ match   ex7       input2
     print $ matchR  ex7       input2
     print $ matchST ex7       input2
 #endif
     print $ derp   ex7derp   input2
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
     print $ derp   ex7derp'  input2
 #endif
 
     defaultMain
         [ bench "parsec" $ whnf (parsec ex7parsec) input
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
         , bench "rere"   $ whnf (match  ex7)       input
         , bench "ref"    $ whnf (matchR ex7)       input
         , bench "st"     $ whnf (matchST ex7)      input
 #endif
         , bench "derp"   $ whnf (derp   ex7derp)   input
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
         , bench "derpC"  $ whnf (derp   ex7derp')  input
 #endif
 
         , bench "parsec" $ whnf (parsec ex7parsec) input2
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
         , bench "rere"   $ whnf (match  ex7)       input2
         , bench "ref"    $ whnf (matchR ex7)       input2
         , bench "st"     $ whnf (matchST ex7)      input2
 #endif
         , bench "derp"   $ whnf (derp   ex7derp)   input2
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
         , bench "derpC"  $ whnf (derp   ex7derp')  input2
 #endif
         ]
@@ -87,7 +87,7 @@ main = do
 -- Derp
 -------------------------------------------------------------------------------
 
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
 ex7derp' :: D.Parser Char ()
 ex7derp' = rere2derp ex7
 #endif

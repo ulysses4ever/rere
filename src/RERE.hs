@@ -19,7 +19,7 @@ module RERE (
 #endif
     string_,
     -- ** Operations
-    nullable, derivative, compact,
+    nullable, derivative, compact, size,
     -- ** Matching
     match,
     -- ** Generation
@@ -30,7 +30,7 @@ module RERE (
     Name,
 
     -- * Context-free grammars
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
     CFG, CFGBase,
     cfgToRE,
 #endif
@@ -49,7 +49,7 @@ module RERE (
     -- * Pretty printing (as LaTeX)
     putLatex,
     putLatexTrace,
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
     putLatexCFG,
 #endif
     ) where
@@ -62,6 +62,6 @@ import RERE.ST
 import RERE.Type
 import RERE.Var
 
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
 import RERE.CFG
 #endif

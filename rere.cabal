@@ -71,6 +71,10 @@ library
 
   -- expose examples first, so `cabal repl` loads them.
   exposed-modules:  RERE.Examples
+
+  if (flag(rere-cfg) && impl(ghc >=7.8))
+    exposed-modules: RERE.Examples.JSON
+
   exposed-modules:
     RERE
     RERE.Absurd
@@ -86,12 +90,13 @@ library
   other-modules:    RERE.Tuples
 
   if (flag(rere-cfg) && impl(ghc >=7.8))
-    cpp-options:     -DRERE_CFG
     build-depends:
       , fin  ^>=0.1.1
       , vec  ^>=0.3
 
     exposed-modules: RERE.CFG
+  else
+    cpp-options:     -DRERE_NO_CFG
 
   if flag(rere-intersection)
     cpp-options: -DRERE_INTERSECTION
@@ -111,8 +116,8 @@ benchmark simple
     , parsec
     , rere
 
-  if (flag(rere-cfg) && impl(ghc >=7.8))
-    cpp-options: -DRERE_CFG
+  if !(flag(rere-cfg) && impl(ghc >=7.8))
+    cpp-options:     -DRERE_NO_CFG
 
   if flag(rere-intersection)
     cpp-options: -DRERE_INTERSECTION
@@ -147,11 +152,16 @@ benchmark json
   -- extras
   -- build-depends: saison
 
+  if !impl(ghc >=8.0)
+    build-depends: semigroups >=0.18.4 && <0.20
+
+  if !impl(ghc >=7.10)
+    build-depends: void ^>=0.7.2
+
   if flag(rere-intersection)
     cpp-options: -DRERE_INTERSECTION
 
-  if !(flag(rere-cfg) && impl(ghc >=8.2))
-    -- ghc brain explodes on older
+  if !(flag(rere-cfg) && impl(ghc >=7.8))
     buildable: False
 
 test-suite properties

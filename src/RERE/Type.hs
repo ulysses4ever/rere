@@ -24,13 +24,15 @@ module RERE.Type (
     derivative,
     match,
     compact,
+    size,
     -- * Internals
     derivative1,
     derivative2,
     ) where
 
-import Data.String (IsString (..))
-import Data.Void   (Void)
+import Control.Monad (ap)
+import Data.String   (IsString (..))
+import Data.Void     (Void)
 
 import qualified Data.Set        as Set
 import qualified RERE.CharSet    as CS
@@ -41,7 +43,7 @@ import RERE.Tuples
 import RERE.Var
 
 #if !MIN_VERSION_base(4,8,0)
-import Control.Applicative (pure, (<$>))
+import Control.Applicative (Applicative (..), (<$>))
 import Data.Foldable       (Foldable)
 import Data.Traversable    (Traversable (..))
 #endif
@@ -78,6 +80,30 @@ data RE a
 
 instance Ord a => IsString (RE a) where
     fromString = string_
+
+instance Applicative RE where
+    pure = Var
+    (<*>) = ap
+
+instance Monad RE where
+    return = Var
+
+    Null       >>= _ = Null
+    Full       >>= _ = Full
+    Eps        >>= _ = Eps
+    Ch c       >>= _ = Ch c
+    App r s    >>= k = App (r >>= k) (s >>= k)
+    Alt r s    >>= k = Alt (r >>= k) (s >>= k)
+    Star r     >>= k = Star (r >>= k)
+    Var a      >>= k = k a
+    Let n s r  >>= k = Let n (s >>= k) (r >>= unvar (Var B) (fmap F . k))
+    Fix n r1   >>= k = Fix n (r1 >>= unvar (Var B) (fmap F . k))
+
+#ifdef RERE_INTERSECTION
+    And r s    >>= k = And (r >>= k) (s >>= k)
+#endif
+
+
 
 -------------------------------------------------------------------------------
 -- QuickCheck
@@ -134,7 +160,7 @@ arb n vars = QC.frequency $
 instance (Absurd a, Ord a) => QC.Arbitrary (RE a) where
     arbitrary = QC.sized $ \n -> arb n []
     shrink    = shr
-    
+
 shr :: RE a -> [RE a]
 shr Null   = []
 shr Eps    = [Null]
@@ -316,11 +342,34 @@ unused :: RE (Var a) -> Maybe (RE a)
 unused = traverse (unvar Nothing Just)
 
 -------------------------------------------------------------------------------
+-- size
+-------------------------------------------------------------------------------
+
+-- | Size of 'RE'. Counts constructors.
+--
+size :: RE a -> Int
+size Null        = 1
+size Full        = 1
+size Eps         = 1
+size (Ch _)      = 1
+size (Var _)     = 1
+size (App r s)   = succ (size r + size s)
+size (Alt r s)   = succ (size r + size s)
+size (Star r)    = succ (size r)
+size (Let _ r s) = succ (size r + size s)
+size (Fix _ r)   = succ (size r)
+#ifdef RERE_INTERSECTION
+size (And r s)   = succ (size r + size s)
+#endif
+
+-------------------------------------------------------------------------------
 -- compact
 -------------------------------------------------------------------------------
 
 -- | Re-apply smart constructors on 'RE' structure,
 -- thus potentially making it smaller.
+--
+-- This function is slow.
 compact :: Ord a => RE a -> RE a
 compact r@Null      = r
 compact r@Full      = r
@@ -331,7 +380,7 @@ compact (App r s)   = compact r <> compact s
 compact (Alt r s)   = compact r \/ compact s
 compact (Star r)    = star_ (compact r)
 compact (Let n r s) = let_ n (compact r) (compact s)
-compact (Fix n r)   = fix_ n r
+compact (Fix n r)   = fix_ n (compact r)
 #ifdef RERE_INTERSECTION
 compact (And r s)   = compact r /\ compact s
 #endif
@@ -405,11 +454,11 @@ let_ n r s = postlet_ n r (go B (fmap F r) s) where
 
     go _ _ (Var v) = Var v
     go v x (Let m a b)
-        | x == a    = go v x (b >>>= unvar (Var v) Var)
+        | x == a    = go v x (fmap (unvar v id) b)
         | otherwise = let_ m (go v x a) (go (F v) (fmap F x) b)
     go v x (Fix m a) = fix_ m (go (F v) (fmap F x) a)
 
-postlet_ :: Ord a => Name -> RE a -> RE (Var a) -> RE a
+postlet_ :: Name -> RE a -> RE (Var a) -> RE a
 postlet_ _ r (Var B) = r
 postlet_ _ _ s
     | Just s' <- unused s
@@ -431,11 +480,6 @@ fix_ n r
 --     = let_ m r' (fix_ n (fmap swapVar s))
 fix_ n r = Fix n r
 
-swapVar :: Var (Var a) -> Var (Var a)
-swapVar (F (F a)) = F (F a)
-swapVar (F B)     = B
-swapVar B         = F B
-
 floatOut
     :: (Ord a, Ord b)
     => RE (Var a)                        -- ^ expression
@@ -445,12 +489,12 @@ floatOut
 floatOut (Let m r s) un mk
     | Just r' <- traverse un r
     = Just
-    $ Let m r' $ mk $ fmap swapVar s
+    $ let_ m r' $ mk $ fmap swapVar s
     | otherwise
     = floatOut
         s
         (unvar Nothing un)
-        (mk . Let m (fmap (fmap F) r) . fmap (fmap swapVar))
+        (mk . let_ m (fmap (fmap F) r) . fmap (fmap swapVar))
 floatOut _ _ _ = Nothing
 
 cheap :: RE a -> Bool
