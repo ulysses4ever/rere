@@ -2,7 +2,7 @@
 {-# LANGUAGE GADTs               #-}
 {-# LANGUAGE OverloadedStrings   #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
 {-# LANGUAGE Trustworthy       #-}
 #elif __GLASGOW_HASKELL__ >=704
 {-# LANGUAGE Safe                #-}
@@ -10,10 +10,22 @@
 {-# LANGUAGE Trustworthy         #-}
 #endif
 -- | Pretty-print structures as LaTeX code.
+--
+-- Note: doesn't work with MathJax.
+--
+-- Requires @xcolor@ package. You need to define colors, for example:
+--
+-- @
+-- \\colorlet{rerelit}{red!80!black}    % literal characters
+-- \\colorlet{reresym}{green!50!black}  % symbols: eps and emptyset
+-- \\colorlet{rereidn}{blue}            % identifiers
+-- \\colorlet{rerestr}{red!50!blue}     % strings (subscripts)
+-- @
+--
 module RERE.LaTeX (
     putLatex,
     putLatexTrace,
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
     putLatexCFG,
 #endif
     ) where
@@ -33,7 +45,7 @@ import RERE.Absurd
 import RERE.Type
 import RERE.Var
 
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
 import RERE.CFG
 
 import           Data.Vec.Lazy (Vec (..))
@@ -70,6 +82,23 @@ data Prec
     | StarPrec
   deriving (Eq, Ord, Enum, Show)
 
+literalColor :: String
+symbolColor  :: String
+identColor   :: String
+stringColor  :: String
+
+#if !defined(NO_COLOR)
+literalColor = "\\color{rerelit}"
+symbolColor  = "\\color{reresym}"
+identColor   = "\\color{rereidn}"
+stringColor  = "\\color{rerestr}"
+#else
+literalColor = ""
+symbolColor  = ""
+identColor   = ""
+stringColor  = ""
+#endif
+
 data Piece = Piece !Bool !Bool ShowS
 
 instance IsString Piece where
@@ -94,23 +123,29 @@ latexify :: RE Void -> String
 latexify re0 = unPiece (evalState (latexify' (vacuous re0)) Set.empty) ""
 
 nullPiece :: Piece
-nullPiece = "{\\color{red!80!black}\\emptyset}"
+nullPiece = fromString $ "{" ++ symbolColor ++ "\\emptyset}"
 
 fullPiece :: Piece
-fullPiece = "{\\color{red!80!black}\\Sigma}"
+fullPiece = fromString $ "{" ++ symbolColor ++ "\\Sigma^\\ast}"
+
+epsPiece :: Piece
+epsPiece = fromString $ "{" ++ symbolColor ++ "\\varepsilon}"
 
 latexify' :: RE Piece -> State (Set NI) Piece
 latexify' = go BotPrec where
     go :: Prec -> RE Piece -> State (Set NI) Piece
     go _ Null    = return nullPiece
     go _ Full    = return fullPiece
-    go _ Eps     = return $ piece $ showString "{\\color{red!80!black}\\varepsilon}"
-    go _ (Ch cs) = case CS.toIntervalList cs of
-        []                   -> return nullPiece
-        [(lo,hi)] | lo == hi -> return $ "\\mathtt{" <> latexCharPiece lo <> "}"
-        xs -> return $ "\\{" <> mconcat (intersperse ", " $ map latexCharRange xs) <> "\\}"
+    go _ Eps     = return epsPiece
+    go _ (Ch cs) = return $ case CS.toIntervalList cs of
+        []                   -> nullPiece
+        [(lo,hi)] | lo == hi -> latexCharPiece lo
+        xs | sz < sz'        -> "\\{" <> mconcat (intersperse ", " $ map latexCharRange xs) <> "\\}"
+           | otherwise       -> "\\{" <> mconcat (intersperse ", " $ map latexCharRange $ CS.toIntervalList ccs) <> "\\}^c"
       where
-        
+        ccs = CS.complement cs
+        sz  = CS.size cs
+        sz' = CS.size ccs
 
     go d (App r s) = parens (d > AppPrec) $ do
         r'  <- go AppPrec r
@@ -143,7 +178,7 @@ latexify' = go BotPrec where
 
         r2 <- go BotPrec r'
 
-        let acc = "\\begin{aligned}[t] \\mathbf{let}& \\,"
+        let acc = "\\begin{aligned}[t] \\mathbf{let}\\, &"
                 <> v <> "=_R" <> r2
 
         goLet acc s'
@@ -155,7 +190,7 @@ latexify' = go BotPrec where
 
         r2 <- go BotPrec r
 
-        let acc = "\\begin{aligned}[t] \\mathbf{let}& \\,"
+        let acc = "\\begin{aligned}[t] \\mathbf{let}\\, &"
                 <> v <> "=" <> r2
 
         goLet acc s'
@@ -230,12 +265,10 @@ latexify' = go BotPrec where
     parens True  = fmap $ \(Piece _ _ x) -> piece $ showChar '(' . x . showChar ')'
     parens False = id
 
-literalColor :: String 
-literalColor = "\\color{green!50!black}"
-
 latexChar :: Char -> String
 latexChar '*'  = "\\text{" ++ literalColor ++ "*}"
 latexChar '+'  = "\\text{" ++ literalColor ++ "+}"
+latexChar '-'  = "\\text{" ++ literalColor ++ "-}"
 latexChar '('  = "\\text{" ++ literalColor ++ "(}"
 latexChar ')'  = "\\text{" ++ literalColor ++ ")}"
 latexChar '['  = "\\text{" ++ literalColor ++ "[}"
@@ -244,7 +277,7 @@ latexChar '\\' = "\\text{" ++ literalColor ++ "\\textbackslash}"
 latexChar '#'  = "\\text{" ++ literalColor ++ "\\#}"
 latexChar c
     | c <= '\x20' || c >= '\127' = show (ord c)
-    | otherwise                  = "{" ++ literalColor ++ [c] ++ "}"
+    | otherwise                  = "{" ++ literalColor ++ "\\mathtt{" ++ [c] ++ "}}"
 
 latexCharPiece :: Char -> Piece
 latexCharPiece c = "{" <> fromString (latexChar c) <> "}"
@@ -266,7 +299,7 @@ newUnique (N n cs) = get >>= go 0 where
 showVar :: Name -> Int -> Piece
 showVar (N n cs) i
     = Piece True True
-    $ showString $ "{\\color{blue}\\mathit{" ++ n ++ "}" ++ sub ++ "}"
+    $ showString $ "{" ++ identColor ++ "\\mathit{" ++ n ++ "}" ++ sub ++ "}"
   where
     cs' = showCS cs
     i'  = showI i
@@ -276,7 +309,7 @@ showVar (N n cs) i
         | otherwise                      = "_{" ++ cs' ++ i' ++ "}"
 
     showCS :: [Char] -> String
-    showCS ds = "\\mathtt{\\color{red!50!blue}" ++ concatMap latexChar ds ++ "}"
+    showCS ds = "\\mathtt{" ++ stringColor ++ concatMap latexChar ds ++ "}"
 
     showI :: Int -> String
     showI 0 = ""
@@ -301,8 +334,8 @@ displayTrace :: (Bool, RE Void, [(String, RE Void)]) -> IO ()
 displayTrace (matched, final, steps) = do
     putStrLn "\\begin{aligned}"
     for_ steps $ \(str, re) ->
-        putStrLn $ "& \\mathtt{\\color{red!50!blue}" ++ concatMap latexChar str ++ "} &&\\vdash" ++ sub (nullable re) ++ " " ++ latexify re ++ " \\\\"
-    putStrLn $ "&{\\color{red!80!black}\\varepsilon} &&\\vdash" ++ sub matched ++ " " ++ latexify final ++ " \\\\"
+        putStrLn $ "& \\mathtt{" ++ stringColor ++ concatMap latexChar str ++ "} &&\\vdash" ++ sub (nullable re) ++ " " ++ latexify re ++ " \\\\"
+    putStrLn $ "&{" ++ symbolColor  ++ " \\varepsilon} &&\\vdash" ++ sub matched ++ " " ++ latexify final ++ " \\\\"
     putStrLn "\\end{aligned}"
 
     print matched
@@ -317,7 +350,7 @@ displayTrace (matched, final, steps) = do
 -- CFG
 -------------------------------------------------------------------------------
 
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
 -- | Pretty-print 'CFG' given the names.
 putLatexCFG :: Vec n Name -> CFG n Void -> IO ()
 putLatexCFG names cfg = putStrLn (latexifyCfg names cfg)

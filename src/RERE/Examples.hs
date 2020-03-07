@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP               #-}
 {-# LANGUAGE OverloadedStrings #-}
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
 {-# LANGUAGE Trustworthy       #-}
 #elif __GLASGOW_HASKELL__ >=704
 {-# LANGUAGE Safe              #-}
@@ -20,7 +20,7 @@ import qualified Text.Parsec.String as P
 
 import RERE
 
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
 import Data.Vec.Lazy (Vec (..))
 
 import qualified Data.Fin      as F
@@ -279,7 +279,7 @@ ex6run1 = putLatexTrace ex6 "1*(20+3)"
 -- * Example 7
 -------------------------------------------------------------------------------
 
-#ifdef RERE_CFG
+#ifndef RERE_NO_CFG
 exCfg :: Ord a => CFG N.Nat5 a
 exCfg =
     digit ::: digits ::: term ::: mult ::: expr ::: VNil

@@ -28,6 +28,12 @@ unvar :: r -> (a -> r) -> Var a -> r
 unvar n _ B     = n
 unvar _ j (F x) = j x
 
+-- | Swap variables.
+swapVar :: Var (Var a) -> Var (Var a)
+swapVar (F (F a)) = F (F a)
+swapVar (F B)     = B
+swapVar B         = F B
+
 instance IsString a => IsString (Var a) where fromString = F . fromString
 
 -- | Names carry information used in pretty-printing,
