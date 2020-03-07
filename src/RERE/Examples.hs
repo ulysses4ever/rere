@@ -259,9 +259,9 @@ ex5run1 = putLatexTrace ex5 "abab"
 -- "96+(09493+90790)*19"
 --
 ex6 :: RE Void
-ex6 = Let "d" (Ch "0123456789")
-    $ Let "n" (Var B <> star_ (Var B))
-    $ Fix "e"
+ex6 = let_ "d" (Ch "0123456789")
+    $ let_ "n" (Var B <> star_ (Var B))
+    $ fix_ "e"
     $  ch_ '(' <> Var B <> ch_ ')'
     \/ Var (F B)
     \/ Var B <> ch_ '+' <> Var B
@@ -391,4 +391,39 @@ ex8b = Fix "abc" (Eps \/ vacuous ex8 <> Var B)
 ex8run2 :: IO ()
 ex8run2 = putLatexTrace ex8b "aabbccaabbcc"
 
+#endif
+
+-------------------------------------------------------------------------------
+-- * Example 9
+-------------------------------------------------------------------------------
+
+#ifdef RERE_INTERSECTION
+
+evenRE :: RE Void
+evenRE = star_ (ch_ 'a' <> ch_ 'a')
+
+oddRE :: RE Void
+oddRE = ch_ 'a' <> evenRE
+
+evenRE' :: RE Void
+evenRE' = fix_ "even" (Eps \/ ch_ 'a' <> ch_ 'a' <> Var B)
+
+oddRE' :: RE Void
+oddRE' = ch_ 'a' <> evenRE'
+
+ex9 :: RE Void
+ex9 = let_ "odd" oddRE
+    $ let_ "even" (fmap F evenRE)
+    $ Var B /\ Var (F B)
+
+ex9run1 :: IO ()
+ex9run1 = putLatexTrace ex9 "aaa"
+
+ex9b :: RE Void
+ex9b = let_ "odd" oddRE'
+     $ let_ "even" (fmap F evenRE')
+     $ Var B /\ Var (F B)
+
+ex9run2 :: IO ()
+ex9run2 = putLatexTrace ex9b "aaa"
 #endif

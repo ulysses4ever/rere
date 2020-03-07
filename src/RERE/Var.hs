@@ -56,4 +56,4 @@ instance IsString Name where fromString n = N n []
 
 -- | Make a name for derivative binding (adds subindex).
 derivativeName :: Char -> Name -> Name
-derivativeName _c n = n -- (N n cs) =  N n (cs ++ [c])
+derivativeName c (N n cs) = N n (cs ++ [c])

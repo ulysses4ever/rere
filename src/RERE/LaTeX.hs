@@ -240,7 +240,7 @@ latexify' = go BotPrec where
 
         r2 <- go BotPrec r'
 
-        let acc = acc0 <> "; \\\\ &"
+        let acc = acc0 <> " \\\\ &"
                 <> v <> "=_R" <> r2
 
         goLet acc s'
@@ -252,32 +252,35 @@ latexify' = go BotPrec where
 
         r2 <- go BotPrec r
 
-        let acc = acc0 <> "; \\\\ &"
+        let acc = acc0 <> " \\\\ &"
                 <> v <> "=" <> r2
 
         goLet acc s'
 
     goLet acc s = do
         s' <- go BotPrec s
-        return $ acc <> "\\\\ \\mathbf{in} & \\," <> s' <> "\\end{aligned}"
+        return $ acc <> "\\\\ \\mathbf{in}\\, &" <> s' <> "\\end{aligned}"
 
     parens :: Bool -> State (Set NI) Piece -> State (Set NI) Piece
     parens True  = fmap $ \(Piece _ _ x) -> piece $ showChar '(' . x . showChar ')'
     parens False = id
 
 latexChar :: Char -> String
-latexChar '*'  = "\\text{" ++ literalColor ++ "*}"
-latexChar '+'  = "\\text{" ++ literalColor ++ "+}"
-latexChar '-'  = "\\text{" ++ literalColor ++ "-}"
-latexChar '('  = "\\text{" ++ literalColor ++ "(}"
-latexChar ')'  = "\\text{" ++ literalColor ++ ")}"
-latexChar '['  = "\\text{" ++ literalColor ++ "[}"
-latexChar ']'  = "\\text{" ++ literalColor ++ "]}"
-latexChar '\\' = "\\text{" ++ literalColor ++ "\\textbackslash}"
-latexChar '#'  = "\\text{" ++ literalColor ++ "\\#}"
-latexChar c
+latexChar = latexChar' literalColor
+
+latexChar' :: String -> Char -> String
+latexChar' col '*'  = "\\text{" ++ col ++ "*}"
+latexChar' col '+'  = "\\text{" ++ col ++ "+}"
+latexChar' col '-'  = "\\text{" ++ col ++ "-}"
+latexChar' col '('  = "\\text{" ++ col ++ "(}"
+latexChar' col ')'  = "\\text{" ++ col ++ ")}"
+latexChar' col '['  = "\\text{" ++ col ++ "[}"
+latexChar' col ']'  = "\\text{" ++ col ++ "]}"
+latexChar' col '\\' = "\\text{" ++ col ++ "\\textbackslash}"
+latexChar' col '#'  = "\\text{" ++ col ++ "\\#}"
+latexChar' col c
     | c <= '\x20' || c >= '\127' = show (ord c)
-    | otherwise                  = "{" ++ literalColor ++ "\\mathtt{" ++ [c] ++ "}}"
+    | otherwise                  = "{" ++ col ++ "\\mathtt{" ++ [c] ++ "}}"
 
 latexCharPiece :: Char -> Piece
 latexCharPiece c = "{" <> fromString (latexChar c) <> "}"
@@ -309,7 +312,7 @@ showVar (N n cs) i
         | otherwise                      = "_{" ++ cs' ++ i' ++ "}"
 
     showCS :: [Char] -> String
-    showCS ds = "\\mathtt{" ++ stringColor ++ concatMap latexChar ds ++ "}"
+    showCS ds = "\\mathtt{" ++ stringColor ++ concatMap (latexChar' "") ds ++ "}"
 
     showI :: Int -> String
     showI 0 = ""
@@ -334,7 +337,7 @@ displayTrace :: (Bool, RE Void, [(String, RE Void)]) -> IO ()
 displayTrace (matched, final, steps) = do
     putStrLn "\\begin{aligned}"
     for_ steps $ \(str, re) ->
-        putStrLn $ "& \\mathtt{" ++ stringColor ++ concatMap latexChar str ++ "} &&\\vdash" ++ sub (nullable re) ++ " " ++ latexify re ++ " \\\\"
+        putStrLn $ "& \\mathtt{" ++ stringColor ++ concatMap (latexChar' "") str ++ "} &&\\vdash" ++ sub (nullable re) ++ " " ++ latexify re ++ " \\\\"
     putStrLn $ "&{" ++ symbolColor  ++ " \\varepsilon} &&\\vdash" ++ sub matched ++ " " ++ latexify final ++ " \\\\"
     putStrLn "\\end{aligned}"
 
