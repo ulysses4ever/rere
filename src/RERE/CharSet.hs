@@ -49,6 +49,11 @@ import qualified Data.IntMap as IM
 newtype CharSet = CS { unCS :: IM.IntMap Int }
   deriving (Eq, Ord)
 
+-- | 
+--
+-- >>> "foobar" :: CharSet
+-- "abfor"
+--
 instance IsString CharSet where
     fromString = fromList
 
@@ -58,14 +63,21 @@ instance Show CharSet where
         = showsPrec d (toList cs)
         | otherwise
         = showParen (d > 10)
-        $ showString "CS "
-        . showsPrec 11 (unCS cs)
+        $ showString "CS.fromIntervalList "
+        . showsPrec 11 (toIntervalList cs)
 
 -- | Empty character set.
 empty :: CharSet
 empty = CS IM.empty
 
 -- | universe
+--
+-- >>> size universe
+-- 1114112
+--
+-- >>> universe
+-- CS.fromIntervalList [('\NUL','\1114111')]
+--
 universe :: CharSet
 universe = CS $ IM.singleton 0 0x10ffff
 

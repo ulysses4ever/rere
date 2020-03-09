@@ -39,13 +39,10 @@ type Size = N.Mult2 (N.Plus N.Nat5 N.Nat6)
 -- >>> size (cfgToRE jsonNames jsonCFG)
 -- 232
 --
--- >>> size jsonRE'
--- 205
---
 -- 'jsonRE' is pre-calculated variant.
 --
--- >>> jsonRE == jsonRE'
--- True
+-- >>> size jsonRE
+-- 205
 --
 jsonRE' :: RE Void
 jsonRE' = compact (cfgToRE jsonNames jsonCFG)
@@ -251,3 +248,16 @@ jsonCFG = V.reverse $
 jsonRE :: RE Void
 jsonRE =
     Let "ws" (Fix "ws" (Alt Eps (Alt (App (Ch " ") (Var B)) (Alt (App (Ch "\n") (Var B)) (Alt (App (Ch "\r") (Var B)) (App (Ch "\t") (Var B))))))) (Let "hex" (App (Ch "0123456789") (Ch "ABCDEFabcdef")) (Let "escape" (Alt (Ch "\"/\\bfnrt") (App (Ch "u") (App (Var B) (App (Var B) (App (Var B) (Var B)))))) (Let "character" (Alt (Ch (CS.fromIntervalList [('\32','\33'),('\35','\91'),('\93','\1114111')])) (App (Ch "\\") (Var B))) (Let "characters" (Fix "characters" (Alt Eps (App (Var (F B)) (Var B)))) (Let "string" (App (Ch "\"") (App (Var B) (Ch "\""))) (Let "digits" (Fix "digits" (Alt (Ch "0123456789") (App (Ch "0123456789") (Var B)))) (Let "integer" (Alt (Ch "0123456789") (Alt (App (Ch "123456789") (Var B)) (Alt (App (Ch "-") (Ch "0123456789")) (App (Ch "-") (App (Ch "123456789") (Var B)))))) (Let "fraction" (Alt Eps (App (Ch ".") (Var (F B)))) (Let "sign" (Alt Eps (Ch "+-")) (Let "exponent" (Alt Eps (Alt (App (Ch "E") (App (Var B) (Var (F (F (F B)))))) (App (Ch "e") (App (Var B) (Var (F (F (F B)))))))) (Let "number" (App (Var (F (F (F B)))) (App (Var (F (F B))) (Var B))) (Let "value" (Fix "value" (Let "element" (App (Var (F (F (F (F (F (F (F (F (F (F (F (F B))))))))))))) (App (Var B) (Var (F (F (F (F (F (F (F (F (F (F (F (F B))))))))))))))) (Let "member" (App (Var (F (F (F (F (F (F (F (F (F (F (F (F (F B)))))))))))))) (App (Var (F (F (F (F (F (F (F (F B))))))))) (App (Var (F (F (F (F (F (F (F (F (F (F (F (F (F B)))))))))))))) (App (Ch ":") (Var B))))) (Let "members" (Fix "members" (Alt (Var (F B)) (App (Var (F B)) (App (Ch ",") (Var B))))) (Let "object" (Alt (App (Ch "{") (App (Var (F (F (F (F (F (F (F (F (F (F (F (F (F (F (F B)))))))))))))))) (Ch "}"))) (App (Ch "{") (App (Var B) (Ch "}")))) (Let "elements" (Fix "elements" (Alt (Var (F (F (F (F B))))) (App (Var (F (F (F (F B))))) (App (Ch ",") (Var B))))) (Let "array" (Alt (App (Ch "[") (App (Var (F (F (F (F (F (F (F (F (F (F (F (F (F (F (F (F (F B)))))))))))))))))) (Ch "]"))) (App (Ch "[") (App (Var B) (Ch "]")))) (Alt (Var (F (F B))) (Alt (Var B) (Alt (Var (F (F (F (F (F (F (F (F (F (F (F (F (F B)))))))))))))) (Alt (Var (F (F (F (F (F (F (F B)))))))) (Alt (App (Ch "t") (App (Ch "r") (App (Ch "u") (Ch "e")))) (Alt (App (Ch "f") (App (Ch "a") (App (Ch "l") (App (Ch "s") (Ch "e"))))) (App (Ch "n") (App (Ch "u") (App (Ch "l") (Ch "l"))))))))))))))))) (App (Var (F (F (F (F (F (F (F (F (F (F (F (F B))))))))))))) (App (Var B) (Var (F (F (F (F (F (F (F (F (F (F (F (F B)))))))))))))))))))))))))))
+
+#ifdef RERE_SLOW_DOCTEST
+-- | This are slow tests, take around 90 seconds on my machine
+--
+-- >>> size jsonRE'
+-- 205
+--
+-- >>> jsonRE == jsonRE'
+-- True
+--
+_doctest1 :: ()
+_doctest1 =  ()
+#endif
