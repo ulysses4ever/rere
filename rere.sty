@@ -1,0 +1,76 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{rere}[2020/03/28 package rere]
+
+\newif\if@rerelmodern\@rerelmodernfalse
+\DeclareOption{lmodern}{\@rerelmoderntrue}
+
+\ProcessOptions\relax
+
+\if@rerelmodern
+\RequirePackage[T1]{fontenc}
+\RequirePackage{lmodern}
+\fi
+
+\RequirePackage{amsmath}
+\RequirePackage{amssymb}
+\RequirePackage{xcolor}
+
+\colorlet{reresym}{green!50!black}% green
+\colorlet{rerelit}{red!80!black}% red
+\colorlet{rereidn}{blue}% blue
+\colorlet{rerestr}{red!50!blue}% purple
+
+\newcommand\rerespace{\,}
+\newcommand\rerenull{{\color{reresym}\varnothing}}
+\newcommand\rerealphabet{{\color{reresym}\Sigma}}
+\newcommand\rerefull{\rerestar{\rerealphabet}}
+\newcommand\rereeps{{\color{reresym}\varepsilon}}
+\newcommand\rerelit[1]{{\color{rerelit}\texttt{#1}}}
+\newcommand\rerelitset[1]{\{{#1}\}}
+\newcommand\rerelitsetcomplement[1]{\{{#1}\}^c}
+\newcommand\rerelitrange[2]{{#1}\ldots{#2}}
+\newcommand\rerestr[1]{{\color{rerestr}\texttt{#1}}}
+\newcommand\rerevar[1]{{\color{rereidn}\mathit{#1}}}
+\newcommand\rerevarsub[2]{{\color{rereidn}\mathit{#1}_{#2}}}
+\newcommand\rerevarsubsub[3]{{\color{rereidn}\mathit{#1}_{{#2};{#3}}}}
+\newcommand\rerealt[2]{{#1}\cup{#2}}
+\newcommand\rereintersect[2]{{#1}\cap{#2}}
+\newcommand\rerestar[1]{{#1}^\ast}
+\newcommand\rereconcat[2]{{#1}{#2}}
+\newenvironment{reretrace}{\aligned}{\endaligned}
+\newenvironment{rerecfg}{\aligned}{\endaligned}
+\newenvironment{rerealignedlet}{\aligned[t]\rereLET~&\alignedat[t]{2}}{\endaligned}
+\newcommand\reretraceline[3][]{{#2} &\ \vdash\ifx\relax#1\relax\else_{#1}\fi\ {#3} \\}
+\newcommand\rerecfgproduction[2]{{#1} &= {#2} \\}
+\newcommand\rereLET{\mathbf{let}}
+\newcommand\rereIN{\mathbf{in}}
+\newcommand\rereFIX{\mathbf{fix}}
+\newcommand\rereEQ{=}
+\newcommand\rereRECEQ{=_{R}}
+\newcommand\rereleteqn[2]{&{#1}&&\rereEQ{#2}\\}
+\newcommand\rereletreceqn[2]{&{#1}&&\rereRECEQ{#2}\\}
+\newcommand\rereletbody[1]{\endalignedat\\\rereIN~&{#1}}
+\newcommand\rereletin[3]{\rereLET~{#1}\rereEQ{#2}~\rereIN~{#3}}
+\newcommand\rereletrecin[3]{\rereLET~{#1}\rereRECEQ{#2}~\rereIN~{#3}}
+\newcommand\rerefix[2]{\rereFIX~{#1}\rereEQ{#2}}
+\newcommand\rerecharpopen{(}
+\newcommand\rerecharpclose{)}
+\newcommand\rerecharbopen{[}
+\newcommand\rerecharbclose{]}
+\newcommand\rerecharcopen{\{}
+\newcommand\rerecharcclose{\}}
+\newcommand\rerecharplus{+}
+\newcommand\rerecharminus{-}
+\newcommand\rerecharstar{*}
+\newcommand\rerecharbackslash{\textbackslash}
+\newcommand\rerecharhash{\#}
+\newcommand\rerechartilde{\~}
+\newcommand\rerecharspace{\textvisiblespace}
+\newcommand\rerecharampersand{\&}
+\newcommand\rerecharpercent{\%}
+\newcommand\rerecharunderscore{\_}
+\newcommand\rerecharhat{\^}
+\newcommand\rerechardollar{\$}
+\newcommand\rerecharcode[1]{\textnormal{\normalcolor #1}}
+
+\endinput

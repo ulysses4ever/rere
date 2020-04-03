@@ -13,14 +13,8 @@
 --
 -- Note: doesn't work with MathJax.
 --
--- Requires @xcolor@ package. You need to define colors, for example:
---
--- @
--- \\colorlet{rerelit}{red!80!black}    % literal characters
--- \\colorlet{reresym}{green!50!black}  % symbols: eps and emptyset
--- \\colorlet{rereidn}{blue}            % identifiers
--- \\colorlet{rerestr}{red!50!blue}     % strings (subscripts)
--- @
+-- Requires rere.sty distributed with this package, or definition of
+-- the macros that are provided by rere.sty in some other way.
 --
 module RERE.LaTeX (
     putLatex,
@@ -82,23 +76,10 @@ data Prec
     | StarPrec
   deriving (Eq, Ord, Enum, Show)
 
-literalColor :: String
-symbolColor  :: String
-identColor   :: String
-stringColor  :: String
-
-#if !defined(NO_COLOR)
-literalColor = "\\color{rerelit}"
-symbolColor  = "\\color{reresym}"
-identColor   = "\\color{rereidn}"
-stringColor  = "\\color{rerestr}"
-#else
-literalColor = ""
-symbolColor  = ""
-identColor   = ""
-stringColor  = ""
-#endif
-
+-- | The Booleans indicate whether the piece needs spacing if
+-- combined with another spacing-sensitive piece before and/or
+-- after.
+--
 data Piece = Piece !Bool !Bool ShowS
 
 instance IsString Piece where
@@ -107,12 +88,19 @@ instance IsString Piece where
 piece :: ShowS -> Piece
 piece = Piece False False
 
+-- | Modify a piece, preserving the underlying piece's spacing
+-- behaviour.
+--
+preserve :: (Piece -> Piece) -> Piece -> Piece
+preserve f p@(Piece a b _) =
+  Piece a b (unPiece (f p))
+
 unPiece :: Piece -> ShowS
 unPiece (Piece _ _ ss) = ss
 
 instance Semigroup Piece where
     Piece a b x <> Piece c d y = Piece a d (x . sep . y) where
-        sep | b, c      = showString "\\,"
+        sep | b, c      = showString rerespace
             | otherwise = id
 
 instance Monoid Piece where
@@ -122,14 +110,164 @@ instance Monoid Piece where
 latexify :: RE Void -> String
 latexify re0 = unPiece (evalState (latexify' (vacuous re0)) Set.empty) ""
 
+latexCS :: (IsString a, Monoid a) => String -> Maybe a -> [a] -> a
+latexCS csname Nothing [] =
+  "\\" <> fromString csname <> " " -- add extra space after plain csname to ensure there is no letter directly following
+latexCS csname optarg args =
+  "\\" <> fromString csname <> optwrap optarg <> mconcat (wrap <$> args)
+  where
+    optwrap Nothing    = mempty
+    optwrap (Just arg) = "[" <> arg <> "]"
+
+    wrap arg = "{" <> arg <> "}"
+
+preservingLatexCS :: String -> Maybe Piece -> Piece -> Piece
+preservingLatexCS csname optarg arg =
+  preserve (latexCS csname optarg . pure) arg
+
+latexBegin :: String -> Piece
+latexBegin envname =
+  latexCS "begin" Nothing [fromString envname]
+
+latexEnd :: String -> Piece
+latexEnd envname =
+  latexCS "end" Nothing [fromString envname]
+
+rerespace :: (IsString a, Monoid a) => a
+rerespace = latexCS "rerespace" Nothing []
+
+rerelitset :: (IsString a, Monoid a) => a -> a
+rerelitset x = latexCS "rerelitset" Nothing [x]
+
+rerelitsetcomplement :: (IsString a, Monoid a) => a -> a
+rerelitsetcomplement x = latexCS "rerelitsetcomplement" Nothing [x]
+
+rerealt :: Piece -> Piece -> Piece
+rerealt x y = latexCS "rerealt" Nothing [x, y]
+
+rereintersect :: Piece -> Piece -> Piece
+rereintersect x y = latexCS "rereintersect" Nothing [x, y]
+
+rerestar :: Piece -> Piece
+rerestar x = preservingLatexCS "rerestar" Nothing x
+
+beginrerealignedlet :: Piece
+beginrerealignedlet = latexBegin "rerealignedlet"
+
+endrerealignedlet :: Piece
+endrerealignedlet = latexEnd "rerealignedlet"
+
+rereletreceqn :: Piece -> Piece -> Piece
+rereletreceqn x y = latexCS "rereletreceqn" Nothing [x, y]
+
+rereleteqn :: Piece -> Piece -> Piece
+rereleteqn x y = latexCS "rereleteqn" Nothing [x, y]
+
+rereletrecin :: Piece -> Piece -> Piece -> Piece
+rereletrecin x y z = latexCS "rereletrecin" Nothing [x, y, z]
+
+rereletin :: Piece -> Piece -> Piece -> Piece
+rereletin x y z = latexCS "rereletin" Nothing [x, y, z]
+
+rerefix :: Piece -> Piece -> Piece
+rerefix x y = latexCS "rerefix" Nothing [x, y]
+
+rereletbody :: Piece -> Piece
+rereletbody x = latexCS "rereletbody" Nothing [x]
+
+rerelit :: (IsString a, Monoid a) => a -> a
+rerelit x = latexCS "rerelit" Nothing [x]
+
+rerelitrange :: (IsString a, Monoid a) => a -> a -> a
+rerelitrange x y = latexCS "rerelitrange" Nothing [x, y]
+
+rerestr :: (IsString a, Monoid a) => a -> a
+rerestr x = latexCS "rerestr" Nothing [x]
+
+rerevar :: (IsString a, Monoid a) => a -> a
+rerevar x = latexCS "rerevar" Nothing [x]
+
+rerevarsub :: (IsString a, Monoid a) => a -> a -> a
+rerevarsub x y = latexCS "rerevarsub" Nothing [x, y]
+
+rerevarsubsub :: (IsString a, Monoid a) => a -> a -> a -> a
+rerevarsubsub x y z = latexCS "rerevarsubsub" Nothing [x, y, z]
+
+rerenull :: (IsString a, Monoid a) => a
+rerenull = latexCS "rerenull" Nothing []
+
+rerefull :: (IsString a, Monoid a) => a
+rerefull = latexCS "rerefull" Nothing []
+
+rereeps :: (IsString a, Monoid a) => a
+rereeps = latexCS "rereeps" Nothing []
+
+beginreretrace :: Piece
+beginreretrace = latexBegin "reretrace"
+
+endreretrace :: Piece
+endreretrace = latexEnd "reretrace"
+
+reretraceline :: Maybe Piece -> String -> String -> Piece
+reretraceline o x y = latexCS "reretraceline" o [fromString x, fromString y]
+
+beginrerecfg :: Piece
+beginrerecfg = latexBegin "rerecfg"
+
+endrerecfg :: Piece
+endrerecfg = latexEnd "rerecfg"
+
+rerecfgproduction :: Piece -> Piece -> Piece
+rerecfgproduction x y = latexCS "rerecfgproduction" Nothing [x, y]
+
+rerecharstar :: String
+rerecharstar = latexCS "rerecharstar" Nothing []
+rerecharplus :: String
+rerecharplus = latexCS "rerecharplus" Nothing []
+rerecharminus :: String
+rerecharminus = latexCS "rerecharminus" Nothing []
+rerecharpopen :: String
+rerecharpopen = latexCS "rerecharpopen" Nothing []
+rerecharpclose :: String
+rerecharpclose = latexCS "rerecharpclose" Nothing []
+rerecharbopen :: String
+rerecharbopen = latexCS "rerecharbopen" Nothing []
+rerecharbclose :: String
+rerecharbclose = latexCS "rerecharbclose" Nothing []
+rerecharcopen :: String
+rerecharcopen = latexCS "rerecharcopen" Nothing []
+rerecharcclose :: String
+rerecharcclose = latexCS "rerecharcclose" Nothing []
+rerecharbackslash :: String
+rerecharbackslash = latexCS "rerecharbackslash" Nothing []
+rerecharhash :: String
+rerecharhash = latexCS "rerecharhash" Nothing []
+rerechartilde :: String
+rerechartilde = latexCS "rerechartilde" Nothing []
+rerecharspace :: String
+rerecharspace = latexCS "rerecharspace" Nothing []
+rerecharampersand :: String
+rerecharampersand = latexCS "rerecharampersand" Nothing []
+rerecharpercent :: String
+rerecharpercent = latexCS "rerecharpercent" Nothing []
+rerecharunderscore :: String
+rerecharunderscore = latexCS "rerecharunderscore" Nothing []
+rerecharhat :: String
+rerecharhat = latexCS "rerecharhat" Nothing []
+rerechardollar :: String
+rerechardollar = latexCS "rerechardollar" Nothing []
+
+rerecharcode :: String -> String
+rerecharcode x = latexCS "rerecharcode" Nothing [x]
+
 nullPiece :: Piece
-nullPiece = fromString $ "{" ++ symbolColor ++ "\\emptyset}"
+nullPiece = rerenull
 
 fullPiece :: Piece
-fullPiece = fromString $ "{" ++ symbolColor ++ "\\Sigma^\\ast}"
+fullPiece = rerefull
 
 epsPiece :: Piece
-epsPiece = fromString $ "{" ++ symbolColor ++ "\\varepsilon}"
+epsPiece = rereeps
 
 latexify' :: RE Piece -> State (Set NI) Piece
 latexify' = go BotPrec where
@@ -140,8 +278,8 @@ latexify' = go BotPrec where
     go _ (Ch cs) = return $ case CS.toIntervalList cs of
         []                   -> nullPiece
         [(lo,hi)] | lo == hi -> latexCharPiece lo
-        xs | sz < sz'        -> "\\{" <> mconcat (intersperse ", " $ map latexCharRange xs) <> "\\}"
-           | otherwise       -> "\\{" <> mconcat (intersperse ", " $ map latexCharRange $ CS.toIntervalList ccs) <> "\\}^c"
+        xs | sz < sz'        -> rerelitset (mconcat (intersperse ", " $ map latexCharRange xs))
+           | otherwise       -> rerelitsetcomplement (mconcat (intersperse ", " $ map latexCharRange $ CS.toIntervalList ccs))
       where
         ccs = CS.complement cs
         sz  = CS.size cs
@@ -150,23 +288,23 @@ latexify' = go BotPrec where
     go d (App r s) = parens (d > AppPrec) $ do
         r'  <- go AppPrec r
         s'  <- go AppPrec s
-        return (r' <> s')
+        return $ r' <> s' -- not via a control sequence to preserve the spacing hack
 
     go d (Alt r s) = parens (d > AltPrec) $ do
         r'  <- go AltPrec r
         s'  <- go AltPrec s
-        return $ r' <> "\\cup" <>  s'
+        return $ rerealt r' s'
 
 #ifdef RERE_INTERSECTION
     go d (And r s) = parens (d > AndPrec) $ do
         r'  <- go AndPrec r
         s'  <- go AndPrec s
-        return $ r' <> "\\cap" <>  s'
+        return $ rereintersect r' s'
 #endif
 
     go d (Star r) = parens (d > StarPrec) $ do
         r' <- go StarPrec r
-        return (r' <> "^\\star")
+        return $ rerestar r'
 
     go _ (Var x) = return x
 
@@ -178,8 +316,7 @@ latexify' = go BotPrec where
 
         r2 <- go BotPrec r'
 
-        let acc = "\\begin{aligned}[t] \\mathbf{let}\\, &"
-                <> v <> "=_R" <> r2
+        let acc = beginrerealignedlet <> rereletreceqn v r2
 
         goLet acc s'
 
@@ -190,8 +327,7 @@ latexify' = go BotPrec where
 
         r2 <- go BotPrec r
 
-        let acc = "\\begin{aligned}[t] \\mathbf{let}\\, &"
-                <> v <> "=" <> r2
+        let acc = beginrerealignedlet <> rereleteqn v r2
 
         goLet acc s'
 
@@ -204,10 +340,7 @@ latexify' = go BotPrec where
         r2 <- go BotPrec r'
         s2 <- go BotPrec s'
 
-        return $ "\\mathbf{let}\\,"
-               <> v <> "=_R" <> r2
-               <> "\\,\\mathbf{in}\\,"
-               <> s2
+        return $ rereletrecin v r2 s2
 
     go d (Let n r s) = parens (d > BotPrec) $ do
         i <- newUnique n
@@ -217,10 +350,7 @@ latexify' = go BotPrec where
         r2 <- go BotPrec r
         s2 <- go BotPrec s'
 
-        return $ "\\mathbf{let}\\,"
-               <> v <> "=" <> r2
-               <> "\\,\\mathbf{in}\\,"
-               <> s2
+        return $ rereletin v r2 s2
 
     go d (Fix n r) = parens (d > BotPrec) $ do
         i <- newUnique n
@@ -228,7 +358,7 @@ latexify' = go BotPrec where
         let r' = fmap (unvar v id) r
 
         r'' <- go BotPrec r'
-        return $ piece $ showString "\\mathbf{fix}\\," . unPiece v . showChar '=' . unPiece r''
+        return $ rerefix v r''
 
 
     goLet :: Piece -> RE Piece -> State (Set NI) Piece
@@ -240,8 +370,7 @@ latexify' = go BotPrec where
 
         r2 <- go BotPrec r'
 
-        let acc = acc0 <> " \\\\ &"
-                <> v <> "=_R" <> r2
+        let acc = acc0 <> rereletreceqn v r2
 
         goLet acc s'
 
@@ -252,43 +381,51 @@ latexify' = go BotPrec where
 
         r2 <- go BotPrec r
 
-        let acc = acc0 <> " \\\\ &"
-                <> v <> "=" <> r2
+        let acc = acc0 <> rereleteqn v r2
 
         goLet acc s'
 
     goLet acc s = do
         s' <- go BotPrec s
-        return $ acc <> "\\\\ \\mathbf{in}\\, &" <> s' <> "\\end{aligned}"
+        return $ acc <> rereletbody s' <> endrerealignedlet
 
     parens :: Bool -> State (Set NI) Piece -> State (Set NI) Piece
     parens True  = fmap $ \(Piece _ _ x) -> piece $ showChar '(' . x . showChar ')'
     parens False = id
 
 latexChar :: Char -> String
-latexChar = latexChar' literalColor
+latexChar c = rerelit (latexChar' c)
 
-latexChar' :: String -> Char -> String
-latexChar' col '*'  = "\\text{" ++ col ++ "*}"
-latexChar' col '+'  = "\\text{" ++ col ++ "+}"
-latexChar' col '-'  = "\\text{" ++ col ++ "-}"
-latexChar' col '('  = "\\text{" ++ col ++ "(}"
-latexChar' col ')'  = "\\text{" ++ col ++ ")}"
-latexChar' col '['  = "\\text{" ++ col ++ "[}"
-latexChar' col ']'  = "\\text{" ++ col ++ "]}"
-latexChar' col '\\' = "\\text{" ++ col ++ "\\textbackslash}"
-latexChar' col '#'  = "\\text{" ++ col ++ "\\#}"
-latexChar' col c
-    | c <= '\x20' || c >= '\127' = show (ord c)
-    | otherwise                  = "{" ++ col ++ "\\mathtt{" ++ [c] ++ "}}"
+latexChar' :: Char -> String
+latexChar' '*'  = rerecharstar
+latexChar' '+'  = rerecharplus
+latexChar' '-'  = rerecharminus
+latexChar' '('  = rerecharpopen
+latexChar' ')'  = rerecharpclose
+latexChar' '['  = rerecharbopen
+latexChar' ']'  = rerecharbclose
+latexChar' '{'  = rerecharcopen
+latexChar' '}'  = rerecharcclose
+latexChar' '\\' = rerecharbackslash
+latexChar' '#'  = rerecharhash
+latexChar' '~'  = rerechartilde
+latexChar' ' '  = rerecharspace
+latexChar' '&'  = rerecharampersand
+latexChar' '%'  = rerecharpercent
+latexChar' '_'  = rerecharunderscore
+latexChar' '^'  = rerecharhat
+latexChar' '$'  = rerechardollar
+latexChar' c
+    | c <= '\x20' || c >= '\127' = rerecharcode (show (ord c))
+    | otherwise                  = [c]
 
 latexCharPiece :: Char -> Piece
-latexCharPiece c = "{" <> fromString (latexChar c) <> "}"
+latexCharPiece c = fromString (latexChar c)
 
 latexCharRange :: (Char, Char) -> Piece
 latexCharRange (lo, hi)
     | lo == hi  = latexCharPiece lo
-    | otherwise = latexCharPiece lo <> " \\ldots " <> latexCharPiece hi
+    | otherwise = rerelitrange (latexCharPiece lo) (latexCharPiece hi)
 
 data NI = NI String [Char] Int deriving (Eq, Ord)
 
@@ -299,20 +436,20 @@ newUnique (N n cs) = get >>= go 0 where
         put (Set.insert (NI n cs i) s)
         return i
 
+latexString :: String -> String
+latexString cs = rerestr (concatMap latexChar' cs)
+
 showVar :: Name -> Int -> Piece
 showVar (N n cs) i
-    = Piece True True
-    $ showString $ "{" ++ identColor ++ "\\mathit{" ++ n ++ "}" ++ sub ++ "}"
+    = Piece True True $ showString var
   where
-    cs' = showCS cs
+    cs' = latexString cs
     i'  = showI i
 
-    sub | null cs && null i'             = ""
-        | not (null cs) && not (null i') = "_{" ++ cs' ++ ";" ++ i' ++ "}"
-        | otherwise                      = "_{" ++ cs' ++ i' ++ "}"
-
-    showCS :: [Char] -> String
-    showCS ds = "\\mathtt{" ++ stringColor ++ concatMap (latexChar' "") ds ++ "}"
+    var :: String
+    var | null cs && null i'             = rerevar n
+        | not (null cs) && not (null i') = rerevarsubsub n cs' i'
+        | otherwise                      = rerevarsub n (cs' <> i')
 
     showI :: Int -> String
     showI 0 = ""
@@ -333,13 +470,16 @@ traced = go id where
     go acc re []         = (nullable re, re, acc [])
     go acc re str@(c:cs) = go (acc . ((str, re) :)) (derivative c re) cs
 
+putPieceLn :: Piece -> IO ()
+putPieceLn = putStrLn . ($ "") . unPiece
+
 displayTrace :: (Bool, RE Void, [(String, RE Void)]) -> IO ()
 displayTrace (matched, final, steps) = do
-    putStrLn "\\begin{aligned}"
+    putPieceLn beginreretrace
     for_ steps $ \(str, re) ->
-        putStrLn $ "& \\mathtt{" ++ stringColor ++ concatMap (latexChar' "") str ++ "} &&\\vdash" ++ sub (nullable re) ++ " " ++ latexify re ++ " \\\\"
-    putStrLn $ "&{" ++ symbolColor  ++ " \\varepsilon} &&\\vdash" ++ sub matched ++ " " ++ latexify final ++ " \\\\"
-    putStrLn "\\end{aligned}"
+        putPieceLn $ reretraceline (Just (sub (nullable re))) (latexString str) (latexify re)
+    putPieceLn $ reretraceline (Just (sub matched)) rereeps (latexify final)
+    putPieceLn endreretrace
 
     print matched
     print final
@@ -356,16 +496,16 @@ displayTrace (matched, final, steps) = do
 #ifndef RERE_NO_CFG
 -- | Pretty-print 'CFG' given the names.
 putLatexCFG :: Vec n Name -> CFG n Void -> IO ()
-putLatexCFG names cfg = putStrLn (latexifyCfg names cfg)
+putLatexCFG names cfg = mapM_ putPieceLn (latexifyCfg names cfg)
 
-latexifyCfg :: forall n. Vec n Name -> CFG n Void -> String
+latexifyCfg :: forall n. Vec n Name -> CFG n Void -> [Piece]
 latexifyCfg names cfg =
-    unlines $  ["\\begin{aligned}"] ++ go names cfg ++ ["\\end{aligned}"]
+    [beginrerecfg] ++ go names cfg ++ [endrerecfg]
   where
     initS :: State (Set NI) ()
     initS = for_ names newUnique
 
-    go :: Vec m Name -> Vec m (CFGBase n Void) -> [String]
+    go :: Vec m Name -> Vec m (CFGBase n Void) -> [Piece]
     go VNil       VNil       = []
     go (n ::: ns) (e ::: es) = eq' : go ns es where
         e' = fmap (either (\i -> showVar (names V.! i) 0) absurd) e
@@ -374,10 +514,10 @@ latexifyCfg names cfg =
         eq = do
             initS
             e'' <- latexify' e'
-            return $ n' <> " &= " <> e'' <> " \\\\"
+            return $ rerecfgproduction n' e''
 
-        eq' :: String
-        eq' = unPiece (evalState eq Set.empty) ""
+        eq' :: Piece
+        eq' = evalState eq Set.empty
 #if __GLASGOW_HASKELL__  <711
     go _ _ = error "silly GHC"
 #endif
