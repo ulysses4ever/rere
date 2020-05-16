@@ -111,27 +111,28 @@ latexify :: RE Void -> String
 latexify re0 = unPiece (evalState (latexify' (vacuous re0)) Set.empty) ""
 
 latexCS :: (IsString a, Monoid a) => String -> Maybe a -> [a] -> a
-latexCS csname Nothing [] =
-  "\\" <> fromString csname <> " " -- add extra space after plain csname to ensure there is no letter directly following
-latexCS csname optarg args =
-  "\\" <> fromString csname <> optwrap optarg <> mconcat (wrap <$> args)
+latexCS csname Nothing [] = mconcat
+ -- add extra space after plain csname to ensure there is no letter directly following
+    [ "\\", fromString csname, " " ]
+latexCS csname optarg args = mconcat $
+    [ "\\", fromString csname, optwrap optarg ] ++ map wrap args
   where
     optwrap Nothing    = mempty
-    optwrap (Just arg) = "[" <> arg <> "]"
+    optwrap (Just arg) = mconcat ["[", arg, "]"]
 
-    wrap arg = "{" <> arg <> "}"
+    wrap arg = "{" `mappend` arg `mappend` "}"
 
 preservingLatexCS :: String -> Maybe Piece -> Piece -> Piece
 preservingLatexCS csname optarg arg =
-  preserve (latexCS csname optarg . pure) arg
+    preserve (latexCS csname optarg . return) arg
 
 latexBegin :: String -> Piece
 latexBegin envname =
-  latexCS "begin" Nothing [fromString envname]
+    latexCS "begin" Nothing [fromString envname]
 
 latexEnd :: String -> Piece
 latexEnd envname =
-  latexCS "end" Nothing [fromString envname]
+    latexCS "end" Nothing [fromString envname]
 
 rerespace :: (IsString a, Monoid a) => a
 rerespace = latexCS "rerespace" Nothing []
