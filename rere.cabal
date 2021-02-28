@@ -1,7 +1,6 @@
 cabal-version:      2.2
 name:               rere
-version:            0.1
-x-revision:         1
+version:            0.2
 synopsis:
   Regular-expressions extended with fixpoints for context-free powers
 
@@ -14,8 +13,11 @@ author:             Oleg Grenrus <oleg.grenrus@iki.fi>
 maintainer:         Oleg Grenrus <oleg.grenrus@iki.fi>
 license:            BSD-3-Clause
 license-file:       LICENSE
-extra-source-files: jsverify.json
-data-files:         rere.sty
+extra-source-files:
+  changelog.md
+  jsverify.json
+  rere.sty
+
 tested-with:
   GHC ==7.0.4
    || ==7.2.2
@@ -28,49 +30,50 @@ tested-with:
    || ==8.4.4
    || ==8.6.5
    || ==8.8.4
-   || ==8.10.3
+   || ==8.10.4
+   || ==9.0.1
 
 source-repository head
   type:     git
   location: https://github.com/phadej/rere.git
 
 flag rere-cfg
-  description: CFG functionality, needs dependency on fin and vec
+  description: CFG functionality, adds dependency on fin and vec
   default:     True
   manual:      True
 
 flag rere-intersection
-  description: Add add intersection constructor. EXPERIMENTAL
+  description: Add intersection constructor. EXPERIMENTAL
   default:     False
   manual:      True
 
 library
-  default-language: Haskell2010
-  hs-source-dirs:   src
-  ghc-options:      -Wall
+  default-language:  Haskell2010
+  hs-source-dirs:    src
+  ghc-options:       -Wall
 
-  if impl(ghc >=8.10)
+  if impl(ghc >=9)
     ghc-options: -Wmissing-safe-haskell-mode -Winferred-safe-imports
 
-  -- GHC boot library
+  -- GHC boot libraries
   build-depends:
-    , base          >=4.3.0.0  && <4.15
+    , base          >=4.3.0.0  && <4.16
     , containers    ^>=0.4.0.0 || ^>=0.5.0.0 || ^>=0.6.0.1
     , parsec        ^>=3.1.12.0
     , transformers  ^>=0.3.0.0 || ^>=0.4.2.0 || ^>=0.5.2.0
 
   -- other dependencies
-  build-depends:    QuickCheck ^>=2.13.2 || ^>=2.14
+  build-depends:     QuickCheck ^>=2.14.2
 
   -- compat
   if !impl(ghc >=7.10)
-    build-depends: void ^>=0.7.2
+    build-depends: void ^>=0.7.3
 
   if !impl(ghc >=8.0)
-    build-depends: semigroups >=0.18.4 && <0.20
+    build-depends: semigroups >=0.18.5 && <0.20
 
   -- expose examples first, so `cabal repl` loads them.
-  exposed-modules:  RERE.Examples
+  exposed-modules:   RERE.Examples
 
   if (flag(rere-cfg) && impl(ghc >=7.8))
     exposed-modules: RERE.Examples.JSON
@@ -87,19 +90,22 @@ library
     RERE.Type
     RERE.Var
 
-  other-modules:    RERE.Tuples
+  other-modules:     RERE.Tuples
 
   if (flag(rere-cfg) && impl(ghc >=7.8))
     build-depends:
-      , fin  ^>=0.1.1
-      , vec  ^>=0.3
+      , fin  ^>=0.2
+      , vec  ^>=0.4
 
     exposed-modules: RERE.CFG
+
   else
-    cpp-options:     -DRERE_NO_CFG
+    cpp-options: -DRERE_NO_CFG
 
   if flag(rere-intersection)
     cpp-options: -DRERE_INTERSECTION
+
+  x-docspec-options: -XOverloadedStrings
 
 benchmark simple
   type:             exitcode-stdio-1.0
@@ -117,7 +123,7 @@ benchmark simple
     , rere
 
   if !(flag(rere-cfg) && impl(ghc >=7.8))
-    cpp-options:     -DRERE_NO_CFG
+    cpp-options: -DRERE_NO_CFG
 
   if flag(rere-intersection)
     cpp-options: -DRERE_INTERSECTION
@@ -175,7 +181,7 @@ test-suite properties
     , QuickCheck
     , quickcheck-instances  ^>=0.3.22
     , rere
-    , tasty                 ^>=1.2.3 || ^>=1.3.1
+    , tasty                 ^>=1.4.0.1
     , tasty-quickcheck      ^>=0.10.1.1
 
   if flag(rere-intersection)

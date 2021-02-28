@@ -23,6 +23,7 @@ import Control.Applicative ((<$>))
 -- $setup
 -- >>> import Test.QuickCheck.Random (mkQCGen)
 -- >>> import Test.QuickCheck.Gen (unGen)
+-- >>> import RERE.Type
 -- >>> let runGen seed = maybe "<<null>>" (\g' -> unGen g' (mkQCGen seed) 10)
 
 -------------------------------------------------------------------------------
@@ -31,11 +32,11 @@ import Control.Applicative ((<$>))
 
 -- | Generate strings.
 --
--- >>> runGen 42 $ generate 10 10 $ star_ (ch_ 'a')
--- "aaa"
+-- >>> runGen 43 $ generate 10 10 $ star_ (ch_ 'a')
+-- "aaaaaaaaaa"
 --
 -- >>> runGen 44 $ generate 10 10 $ star_ (ch_ 'a')
--- "aaaaaaaaaa"
+-- "aaa"
 --
 generate
     :: Int      -- ^ star upper size
