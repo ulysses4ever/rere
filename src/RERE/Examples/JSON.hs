@@ -24,6 +24,9 @@ import qualified RERE.CharSet as CS
 import Data.Semigroup (Semigroup (..))
 #endif
 
+-- $setup
+-- >>> import RERE
+
 -- | Size of JSON grammar, 22.
 type Size = N.Mult2 (N.Plus N.Nat5 N.Nat6)
 

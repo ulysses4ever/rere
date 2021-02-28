@@ -29,6 +29,9 @@ import Data.Traversable (Traversable (..))
 
 -- $setup
 -- >>> :set -XOverloadedStrings
+-- >>> import Data.Fin      (Fin (..))
+-- >>> import Data.Vec.Lazy (Vec (..))
+-- >>> import RERE
 
 -- | Context-free grammar represented as @n@ equations
 -- of 'RE' ('CFGBase') with @n@ variables.

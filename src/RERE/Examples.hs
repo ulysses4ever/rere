@@ -43,6 +43,7 @@ import Data.Semigroup (Semigroup (..))
 -- >>> import Test.QuickCheck.Random (mkQCGen)
 -- >>> import Test.QuickCheck.Gen (unGen)
 -- >>> import Control.Monad.ST (runST)
+-- >>> import RERE
 -- >>> let runGen seed = maybe "<<null>>" (\g' -> unGen g' (mkQCGen seed) 10)
 -- >>> let showRef re = matchDebugR re ""
 
@@ -92,11 +93,11 @@ syntaxExamples = do
 -- >>> matchR ex1 "ababa"
 -- False
 --
--- >>> runGen 42 (generate 10 20 ex1)
--- "ababab"
+-- >>> runGen 43 (generate 10 20 ex1)
+-- "abababababababababab"
 --
 -- >>> runGen 44 (generate 10 20 ex1)
--- "abababababababababab"
+-- "ababab"
 --
 ex1 :: RE Void
 ex1 = star_ (ch_ 'a' <> ch_ 'b')
@@ -124,7 +125,7 @@ ex1run1 = putLatexTrace ex1 "abab"
 -- True
 --
 -- >>> runGen 42 (generate 10 20 ex2)
--- "aaaaaaaaaaa"
+-- "aaaaaa"
 --
 -- >>> runGen 44 (generate 10 20 ex2)
 -- "aaaaaaaaaa"
@@ -158,11 +159,11 @@ ex2run1 = putLatexTrace ex2 "aaa"
 -- >>> matchR ex3 "ababa"
 -- False
 --
--- >>> runGen 42 (generate 10 20 ex3)
--- "ab"
+-- >>> runGen 43 (generate 10 20 ex3)
+-- "abababab"
 --
--- >>> runGen 50 (generate 10 20 ex3)
--- "ababab"
+-- >>> runGen 44 (generate 10 20 ex3)
+-- "abab"
 --
 ex3 :: RE Void
 ex3 = Fix "x" (Eps \/ ch_ 'a' <> ch_ 'b' <> Var B)
@@ -187,11 +188,11 @@ ex3run1 = putLatexTrace ex3 "abab"
 -- >>> matchR ex4 "aaaabbbb"
 -- True
 --
--- >>> runGen 42 (generate 10 20 ex4)
--- "aabb"
+-- >>> runGen 43 (generate 10 20 ex4)
+-- "ab"
 --
--- >>> runGen 45 (generate 10 20 ex4)
--- "aaabbb"
+-- >>> runGen 47 (generate 10 20 ex4)
+-- "aaaabbbb"
 --
 ex4 :: RE Void
 ex4 = Fix "x" (Eps \/ ch_ 'a' <> Var B <> ch_ 'b')
@@ -222,11 +223,11 @@ ex4run1 = putLatexTrace ex4 "aaaabbbb"
 -- >>> matchR ex5 "ababa"
 -- False
 --
--- >>> runGen 42 (generate 10 20 ex5)
+-- >>> runGen 43 (generate 10 20 ex5)
 -- "ab"
 --
--- >>> runGen 45 (generate 10 20 ex5)
--- "ababab"
+-- >>> runGen 51 (generate 10 20 ex5)
+-- "abab"
 --
 ex5 :: RE Void
 ex5 = Fix "x" (Eps \/ Var B <> ch_ 'a' <> ch_ 'b')
@@ -255,8 +256,8 @@ ex5run1 = putLatexTrace ex5 "abab"
 -- >>> matchR ex6 "(1+2)*3"
 -- True
 --
--- >>> runGen 42 (generate 5 5 ex6)
--- "96+(09493+90790)*19"
+-- >>> runGen 43 (generate 5 5 ex6)
+-- "74501+(534*19450)*(99050)"
 --
 ex6 :: RE Void
 ex6 = let_ "d" (Ch "0123456789")
@@ -312,8 +313,8 @@ exCfgN = "digit" ::: "digits" ::: "term" ::: "mult" ::: "expr" ::: VNil
 -- >>> charClasses ex7
 -- fromList "\NUL()*+,0:"
 --
--- >>> runGen 42 (generate 5 5 ex7)
--- "(0181+912595*00+((1228)+467+(80)+(216406))*(65)+4+5*5149+994734)"
+-- >>> runGen 43 (generate 5 5 ex7)
+-- "(3431*((0337+5+070346+4))+76848+((4126+350875)*98769+308194+270+03118)+888*(95+90904)+(301069+7+715835)+2809)"
 --
 ex7 :: Ord a => RE a
 ex7 = cfgToRE exCfgN exCfg
