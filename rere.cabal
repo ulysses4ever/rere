@@ -33,9 +33,10 @@ tested-with:
    || ==8.8.4
    || ==8.10.7
    || ==9.0.2
-   || ==9.2.7
-   || ==9.4.4
-   || ==9.6.1
+   || ==9.2.8
+   || ==9.4.7
+   || ==9.6.3
+   || ==9.8.1
 
 source-repository head
   type:     git
@@ -61,7 +62,7 @@ library
 
   -- GHC boot libraries
   build-depends:
-    , base          >=4.3.0.0  && <4.19
+    , base          >=4.3.0.0  && <4.20
     , containers    ^>=0.4.0.0 || ^>=0.5.0.0 || ^>=0.6.0.1
     , parsec        ^>=3.1.12.0
     , transformers  ^>=0.3.0.0 || ^>=0.4.2.0 || ^>=0.5.2.0 || ^>=0.6.1.0
@@ -146,8 +147,10 @@ benchmark json
   other-modules:    DerpConv
   ghc-options:      -Wall -rtsopts
   build-depends:
-    , aeson       ^>=1.4.6.0 || ^>=1.5.0.0 || ^>=2.0.0.0 || ^>=2.1.0.0
+    , aeson       ^>=1.4.6.0 || ^>=1.5.0.0 || ^>=2.0.0.0 || ^>=2.1.0.0 || ^>=2.2.1.0
     , attoparsec
+    , attoparsec-aeson
+                  ^>=2.1.0.0 || ^>=2.2.0.1
     , base
     , bytestring
     , clock       ^>=0.8
@@ -182,7 +185,7 @@ test-suite properties
     , QuickCheck
     , quickcheck-instances  ^>=0.3.22
     , rere
-    , tasty                 ^>=1.4.0.1
+    , tasty                 ^>=1.4.0.1 || ^>=1.5
     , tasty-quickcheck      ^>=0.10.1.1
 
   if flag(rere-intersection)
