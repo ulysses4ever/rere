@@ -1,10 +1,10 @@
 branches:   master
-tests:      >=7.4
-benchmarks: >=7.4
+tests:      >=8.4
+benchmarks: >=8.4
 docspec:    >=8.4
 
 constraint-set no-cfg
-  ghc:         >=7.8
+  ghc:         >=8.4
   constraints: rere -rere-cfg
 
 constraint-set intersection
