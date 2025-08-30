@@ -173,7 +173,7 @@ test-suite properties
     , QuickCheck
     , rere
     , tasty                 ^>=1.4.0.1 || ^>=1.5
-    , tasty-quickcheck      ^>=0.10.1.1
+    , tasty-quickcheck      ^>=0.10.1.1 || ^>=0.11
 
   if flag(rere-intersection)
     cpp-options: -DRERE_INTERSECTION
