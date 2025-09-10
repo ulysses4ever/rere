@@ -1,0 +1,72 @@
+name: Update Haskell CI when PR updates .cabal file and its title starts with "tested-with"
+
+on:
+  pull_request:
+    # Fire for typical PR lifecycle events
+    types: [opened, reopened]
+    # Only run when the specified file(s) are part of the PR diff.
+    # CHANGE THIS to the path(s) you care about (supports globs).
+    paths:
+      - '**/*.cabal'
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  update-ci:
+    # Require: title starts with "tested-with" (case-insensitive)
+    # and PR originates from the same repository (safe to push back)
+    if: >
+      startsWith(toLower(github.event.pull_request.title), 'tested-with') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out PR branch
+        uses: actions/checkout@v4
+        with:
+          # Checkout the PR head branch so we can commit back to it
+          ref: ${{ github.head_ref }}
+
+      # Haskell-specific: install haskell-ci from source and regenerate workflows
+      - name: Set up Haskell toolchain
+        uses: haskell/actions/setup@v2
+        with:
+          ghc-version: "latest"
+          cabal-version: "latest"
+
+      - name: Install haskell-ci
+        run: |
+          set -euxo pipefail
+          git clone --depth 1 https://github.com/haskell-CI/haskell-ci.git .tooling/haskell-ci
+          cd .tooling/haskell-ci
+          cabal update
+          cabal build exe:haskell-ci
+          cabal install exe:haskell-ci --overwrite-policy=always --installdir="$HOME/.local/bin" --install-method=copy
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Regenerate workflows with haskell-ci
+        run: |
+          set -euxo pipefail
+          # If your repo uses a .haskell-ci file, regenerate from it:
+          if [ -f .haskell-ci ]; then
+            haskell-ci regenerate
+          else
+            # Fallback: generate from cabal metadata (adjust command as needed)
+            haskell-ci generate
+          fi
+
+      - name: Commit changes back to PR branch
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(ci): regenerate CI from tested-with PR"
+          branch: ${{ github.head_ref }}
+          # Limit to the typical files haskell-ci may edit
+          file_pattern: |
+            .github/workflows/**
+            .haskell-ci
