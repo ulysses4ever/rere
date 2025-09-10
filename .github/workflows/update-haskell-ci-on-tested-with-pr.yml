@@ -1,16 +1,13 @@
-name: Update CI when PR title starts with "tested-with"
+name: Update Haskell CI when PR updates .cabal file and its title starts with "tested-with"
 
 on:
   pull_request:
     # Fire for typical PR lifecycle events
-    types: [opened, edited, synchronize, reopened]
+    types: [opened, reopened]
     # Only run when the specified file(s) are part of the PR diff.
     # CHANGE THIS to the path(s) you care about (supports globs).
     paths:
-      - 'package.cabal'
-      # - 'cabal.project'
-      # - 'path/to/your/tested-with.txt'
-      # - '**/*.cabal'
+      - '**/*.cabal'
 
 permissions:
   contents: write
@@ -36,30 +33,14 @@ jobs:
           # Checkout the PR head branch so we can commit back to it
           ref: ${{ github.head_ref }}
 
-      # If you already have a repo script that regenerates CI, just run it.
-      # Otherwise, the next steps show installing and running haskell-ci directly.
-      - name: Run project CI update script (if present)
-        id: maybe_script
-        shell: bash
-        run: |
-          set -euxo pipefail
-          if [ -x ./scripts/update-ci.sh ]; then
-            ./scripts/update-ci.sh
-            echo "ran_script=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "ran_script=false" >> "$GITHUB_OUTPUT"
-          fi
-
       # Haskell-specific: install haskell-ci from source and regenerate workflows
       - name: Set up Haskell toolchain
-        if: steps.maybe_script.outputs.ran_script == 'false'
         uses: haskell/actions/setup@v2
         with:
-          ghc-version: "9.6.6"
-          cabal-version: "3.10.3.0"
+          ghc-version: "latest"
+          cabal-version: "latest"
 
       - name: Install haskell-ci
-        if: steps.maybe_script.outputs.ran_script == 'false'
         run: |
           set -euxo pipefail
           git clone --depth 1 https://github.com/haskell-CI/haskell-ci.git .tooling/haskell-ci
@@ -70,7 +51,6 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Regenerate workflows with haskell-ci
-        if: steps.maybe_script.outputs.ran_script == 'false'
         run: |
           set -euxo pipefail
           # If your repo uses a .haskell-ci file, regenerate from it:
@@ -86,10 +66,7 @@ jobs:
         with:
           commit_message: "chore(ci): regenerate CI from tested-with PR"
           branch: ${{ github.head_ref }}
-          # Limit to the typical files haskell-ci and your script may edit
+          # Limit to the typical files haskell-ci may edit
           file_pattern: |
             .github/workflows/**
             .haskell-ci
-            *.cabal
-            cabal.project*
-            ci/**
