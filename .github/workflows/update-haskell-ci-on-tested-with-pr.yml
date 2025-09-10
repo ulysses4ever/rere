@@ -67,10 +67,7 @@ jobs:
 
       # Haskell-specific: install haskell-ci from source and regenerate workflows
       - name: Set up Haskell toolchain
-        uses: haskell/actions/setup@v2
-        with:
-          ghc-version: "latest"
-          cabal-version: "latest"
+        uses: haskell-actions/setup@v2
 
       - name: Install haskell-ci
         run: |
@@ -85,13 +82,7 @@ jobs:
       - name: Regenerate workflows with haskell-ci
         run: |
           set -euxo pipefail
-          # If your repo uses a .haskell-ci file, regenerate from it:
-          if [ -f .haskell-ci ]; then
-            haskell-ci regenerate
-          else
-            # Fallback: generate from cabal metadata (adjust command as needed)
-            haskell-ci generate
-          fi
+          haskell-ci regenerate
 
       - name: Commit changes back to PR branch
         uses: stefanzweifel/git-auto-commit-action@v5
