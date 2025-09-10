@@ -18,12 +18,44 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      eligible: ${{ steps.gate.outputs.eligible }}
+    steps:
+      - name: Decide eligibility (title starts with tested-with, same-repo PR)
+        id: gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Read and sanitize the PR title (handles quotes)
+          title=${{ toJSON(github.event.pull_request.title) }}
+          title=${title#\"}; title=${title%\"}
+          head_repo="${{ github.event.pull_request.head.repo.full_name }}"
+          base_repo="${{ github.repository }}"
+
+          title_ok=false
+          if printf '%s' "$title" | grep -qiE '^tested-with'; then
+            title_ok=true
+          fi
+
+          same_repo=false
+          if [ "$head_repo" = "$base_repo" ]; then
+            same_repo=true
+          fi
+
+          eligible=false
+          if [ "$title_ok" = true ] && [ "$same_repo" = true ]; then
+            eligible=true
+          fi
+
+          echo "Eligibility: title_ok=$title_ok, same_repo=$same_repo, eligible=$eligible"
+          echo "eligible=$eligible" >> "$GITHUB_OUTPUT"
+
+
   update-ci:
-    # Require: title starts with "tested-with" (case-insensitive)
-    # and PR originates from the same repository (safe to push back)
-    if: >
-      startsWith(toLower(github.event.pull_request.title), 'tested-with') &&
-      github.event.pull_request.head.repo.full_name == github.repository
+    needs: gate
+    if: needs.gate.outputs.eligible == 'true'
     runs-on: ubuntu-latest
 
     steps:
