@@ -12,6 +12,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  workflows: write  # allow committing changes to .github/workflows/*
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
