@@ -105,9 +105,9 @@ jobs:
       - name: Commit changes back to PR branch
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "chore(ci): regenerate CI from tested-with PR"
+          commit_message: "chore(ci): regenerate Haskell-CI from a tested-with PR"
           branch: ${{ github.head_ref }}
-          # Limit to the typical files haskell-ci may edit
+          token: ${{ secrets.WORKFLOW_TOKEN }}   # PAT with workflow + contents/write
           file_pattern: |
             .github/workflows/**
             .haskell-ci
