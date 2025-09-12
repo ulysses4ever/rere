@@ -147,10 +147,7 @@ benchmark json
     , containers
     , criterion   ^>=1.5.5.0 || ^>=1.6.0.0
     , derp
-    , fin
-    , parsec
     , rere
-    , vec
 
   if !impl(ghc >=8.0)
     build-depends: semigroups >=0.18.4 && <0.21
@@ -161,7 +158,7 @@ benchmark json
   if flag(rere-intersection)
     cpp-options: -DRERE_INTERSECTION
 
-  if !(flag(rere-cfg) && impl(ghc >=7.8))
+  if !flag(rere-cfg)
     buildable: False
 
 test-suite properties
