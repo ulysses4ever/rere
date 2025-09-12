@@ -14,8 +14,9 @@ maintainer:         Artem Pelenitsyn <a@pelenitsyn.top>
 license:            BSD-3-Clause
 license-file:       LICENSE
 extra-source-files:
-  changelog.md
   jsverify.json
+extra-doc-files:
+  changelog.md
   rere.sty
 
 tested-with:
