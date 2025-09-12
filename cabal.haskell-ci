@@ -1,3 +1,4 @@
+error-incomplete-patterns: False
 branches:   master
 tests:      >=8.4
 benchmarks: >=8.4
