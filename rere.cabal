@@ -173,7 +173,6 @@ test-suite properties
     , base
     , containers
     , QuickCheck
-    , quickcheck-instances  ^>=0.3.30
     , rere
     , tasty                 ^>=1.4.0.1 || ^>=1.5
     , tasty-quickcheck      ^>=0.10.1.1
