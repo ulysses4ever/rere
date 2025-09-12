@@ -62,7 +62,7 @@ library
     , transformers  ^>=0.3.0.0 || ^>=0.4.2.0 || ^>=0.5.2.0 || ^>=0.6.1.0
 
   -- other dependencies
-  build-depends:     QuickCheck ^>=2.14.2
+  build-depends:     QuickCheck >=2.14.2 && <2.17
 
   -- compat
   if !impl(ghc >=7.10)
